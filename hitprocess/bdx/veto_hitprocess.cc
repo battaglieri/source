@@ -42,27 +42,27 @@ map<string, double> veto_HitProcess :: integrateDgt(MHit* aHit, int hitn)
     int TDC3 = 4096;
     int TDC4 = 4096;
  
-    double length = 0;
+    double length;
     // From measurement
     // spe = 0.36pC
     // Cosmic = 84pC (~235pe)
     // Attenuation at 80cm: ~0.85 -> effective att lenght ~350cm
     //Plastic
-    double paddle_surface = 0;        // paddle surface
-    double light_yield = 0;  // number of optical photons pruced in the scintillator per MeV of deposited energy
-    double att_length = 0;               // light at tenuation length
-    double veff = 0;            // light velocity in scintillator
+    double paddle_surface;        // paddle surface
+    double light_yield;  // number of optical photons pruced in the scintillator per MeV of deposited energy
+    double att_length       ;               // light at tenuation length
+    double veff;            // light velocity in scintillator
      //PMT
-    double sensor_surface = 0;   // area of photo sensor
-    double sensor_effective_area = 0; // considering only a fraction of the photocathod
-    double sensor_qe = 0;                     // photo sensor quantum efficiency
-    double sensor_gain = 0;         // pmt gain x electron charge in pC (2.2x10^6)x(1.6x10^-7) -> ~0.36pC or 1 to have pe
-    double light_coll = 0; // ratio of photo_sensor area over paddle section ~ light collection efficiency
-    double light_guide_att = 0;
-    double tL = 0;
-    double tR = 0;
+    double sensor_surface;   // area of photo sensor
+    double sensor_effective_area; // considering only a fraction of the photocathod
+    double sensor_qe;                     // photo sensor quantum efficiency
+    double sensor_gain;         // pmt gain x electron charge in pC (2.2x10^6)x(1.6x10^-7) -> ~0.36pC or 1 to have pe
+    double light_coll; // ratio of photo_sensor area over paddle section ~ light collection efficiency
+    double light_guide_att;
+    double tL;
+    double tR;
     double peL=0.;
-    double peR = 0;
+    double peR;
     double etot_g4=0.;
 
     // Proposal
@@ -94,9 +94,10 @@ map<string, double> veto_HitProcess :: integrateDgt(MHit* aHit, int hitn)
                 // cout << " lenght: " << length    <<  " optical-coupled surface: " <<  paddle_surface   <<endl;
             }
             if(channel==5 || channel==6)
+                // downstream upstream
             {
                 double s1=aHit->GetDetector().dimensions[0];
-                double s2=aHit->GetDetector().dimensions[3];
+                double s2=aHit->GetDetector().dimensions[2];
                 paddle_surface = 2*s1*2*s2;// surface perpendicular to the pmt position Surf=XxZ
                 sensor_surface=pow((2.5/2)*cm,2)*pi; //
                 att_length=400*cm; // longer att lenght to take into account the perpendicular readout
@@ -104,6 +105,7 @@ map<string, double> veto_HitProcess :: integrateDgt(MHit* aHit, int hitn)
                 // cout << " lenght: " << length    <<  " optical-coupled surface: " <<  paddle_surface   <<endl;
             }
             if(channel==3 || channel==4)
+                //right left
             {
                 // Get the paddle length: in veto paddles are along y
                 length = aHit->GetDetector().dimensions[1];
@@ -154,7 +156,7 @@ map<string, double> veto_HitProcess :: integrateDgt(MHit* aHit, int hitn)
                         dLeft  = length - Lpos[s].z();
                         dRight = length + Lpos[s].z();
                     }
-                    // Distances from left, right for other OV (along y)
+                    // Distances from top/bottom for side OV (along y)
                     
                     if(channel==3 || channel==4)
                     {
@@ -162,6 +164,8 @@ map<string, double> veto_HitProcess :: integrateDgt(MHit* aHit, int hitn)
                         dRight = length - Lpos[s].y();
                     }
                     if(channel==5 || channel==6)
+                        // Distances from center for U/D OV (along y)
+
                     {
                         dLeft  = Lpos[s].x();
                         dRight = Lpos[s].y();
@@ -338,6 +342,18 @@ map<string, double> veto_HitProcess :: integrateDgt(MHit* aHit, int hitn)
             ADC2=G4Poisson(pe_sipm[1]*etot_g4/2.05) ; // Scaling for more/less energy release)
             ADC3=G4Poisson(pe_sipm[2]*etot_g4/2.05) ; // Scaling for more/less energy release)
             ADC4=G4Poisson(pe_sipm[3]*etot_g4/2.05) ; // Scaling for more/less energy release)
+            
+            //adding a gaussian spread accoring to Luca's tabel
+            ADC1=(ADC1+G4RandGauss::shoot(0.,13.));
+            ADC2=(ADC2+G4RandGauss::shoot(0.,13.));
+            ADC3=(ADC3+G4RandGauss::shoot(0.,13.));
+            ADC4=(ADC4+G4RandGauss::shoot(0.,13.));
+            if (ADC1<0) ADC1=0.;
+            if (ADC2<0) ADC2=0.;
+            if (ADC3<0) ADC3=0.;
+            if (ADC4<0) ADC4=0.;
+            
+            
             double sigmaTL=sqrt(pow(0.2*nanosecond,2.)+pow(1.*nanosecond,2.)/(peL+1.));
             sigmaTL=0.;
             TDC1=(timeL+G4RandGauss::shoot(0.,sigmaTL))*1000.;//time in ps
@@ -365,19 +381,24 @@ map<string, double> veto_HitProcess :: integrateDgt(MHit* aHit, int hitn)
     
     
     
-    // Outer veto
-    if(veto_id==2)
+    // Outer veto PMT-readout (some id are missing since they are in a separte routine WLS readout)
+    // 1 WLS readout (L/R)
+    // 2 not existing anymore
+    // 3 bottom
+    if(veto_id==2 && channel!=1 && channel!=2 && channel!=5 && channel!=6)
     {
-        double optical_coupling[13]= {0., 0.94,0.57, 0.35, 0.7, 0.094, 0.177, 0.52, 0.75, 0.52, 0.52, 0.38, 1.0 };
-        for (int s=0; s<13; s++) optical_coupling[s] = optical_coupling[s]*0.68;
+        //double optical_coupling[13]= {0., 0.94,0.57, 0.35, 0.7, 0.094, 0.177, 0.52, 0.75, 0.52, 0.52, 0.38, 1.0 };
+        double optical_coupling[15]=   {0., 0.   ,0. , 0.35, 0.7, 0., 0., 0.94,0.57, 0.52, 0.75, 0.52, 0.52, 0.38, 1.0};
+        for (int s=0; s<15; s++) optical_coupling[s] = optical_coupling[s]*0.68;
         light_yield=9200/MeV;
         veff=13*cm/ns    ;
         sensor_effective_area=0.9;
         sensor_qe=0.25;
         sensor_gain=1.;
 
-    // Upper/lower
-        if(channel==1 || channel==2 || channel==3 || channel ==4)
+
+    // lower
+        if(channel==3 || channel ==4)
         {
             // Get the paddle length: in veto paddles are along z
             length = aHit->GetDetector().dimensions[2];
@@ -389,17 +410,8 @@ map<string, double> veto_HitProcess :: integrateDgt(MHit* aHit, int hitn)
             light_guide_att=1.0;
            // cout << " lenght: " << length    <<  " optical-coupled surface: " <<  paddle_surface   <<endl;
         }
-        if(channel==5 || channel==6)
-        {
-            double s1=aHit->GetDetector().dimensions[0];
-            double s2=aHit->GetDetector().dimensions[3];
-            paddle_surface = 2*s1*2*s2;// surface perpendicular to the pmt position Surf=XxZ
-            sensor_surface=pow((2.5/2)*cm,2)*pi; //
-            att_length=400*cm; // longer att lenght to take into account the perpendicular readout
-            light_guide_att=0.19; // no light guide
-           // cout << " lenght: " << length    <<  " optical-coupled surface: " <<  paddle_surface   <<endl;
-        }
-        if(channel==7 || channel==8 || channel==9 || channel ==10 || channel ==11 || channel ==12 )
+        // 7-8-9-10 R, 11-12-13-14 L
+        if(channel==7 || channel==8 || channel==9 || channel ==10 || channel ==11 || channel ==12 || channel ==13 || channel ==14 )
         {
             // Get the paddle length: in veto paddles are along y
             length = aHit->GetDetector().dimensions[1];
@@ -445,27 +457,18 @@ map<string, double> veto_HitProcess :: integrateDgt(MHit* aHit, int hitn)
             double dRight =-10000.;
             
 			// Distances from left, right for upper/lower (along z)
-            if(channel==1 || channel==2 || channel==3 || channel ==4)
+            if(channel==3 || channel ==4)
             {
 			dLeft  = length - Lpos[s].z();
 			dRight = length + Lpos[s].z();
             }
             // Distances from left, right for other OV (along y)
            
-            if(channel==7 || channel==8 || channel==9 || channel ==10 || channel ==11 || channel ==12 )
+            if(channel==7 || channel==8 || channel==9 || channel ==10 || channel ==11 || channel ==12 || channel ==13 || channel ==14)
             {
                 dLeft  = length + Lpos[s].y();
                 dRight = length - Lpos[s].y();
             }
-            if(channel==5 || channel==6)
-            {
-                dLeft  = Lpos[s].x();
-                dRight = Lpos[s].y();
-                double dCent=sqrt(dLeft*dLeft+dRight*dRight);
-                dRight =dCent;
-                
-            }
-           
             
             
 			// cout << "\n Distances: " << endl;
@@ -553,22 +556,17 @@ map<string, double> veto_HitProcess :: integrateDgt(MHit* aHit, int hitn)
         // ch 5,6               dRight
         // ignore the other side
         
-        if(channel==1 ||  channel==3 )
+        if(channel==3 )
         {
             ADC1=peR;
             TDC1=tR;
         }
-        if(channel==2 || channel ==4)
+        if(channel ==4)
         {
             ADC1=peL;
             TDC1=tL;
         }
-        if(channel==5 || channel==6)
-        {
-            ADC1=peR;
-            TDC1=tR;
-        }
-        if(channel==7 || channel==8 || channel==9 || channel ==10 || channel ==11 || channel ==12 )
+        if(channel==7 || channel==8 || channel==9 || channel ==10 || channel ==11 || channel ==12 || channel ==13 || channel ==14 )
         {
             ADC1=peR;
             TDC1=tR;
@@ -581,16 +579,123 @@ map<string, double> veto_HitProcess :: integrateDgt(MHit* aHit, int hitn)
     
     
     
-    
-    
-    
-// INNER VETO
-   if(veto_id==1)
+    // Outer VETO OV WLS readout
+    if(veto_id==2 && (channel==1 || channel==2 || channel==5 || channel==6))
     {
         double veff=13*cm/ns    ;// TO BE CHECKED
         // scintillator sizes
-//        double sx=aHit->GetDetector().dimensions[0];
-//        double sy=aHit->GetDetector().dimensions[1];
+        //        double sx=aHit->GetDetector().dimensions[0];
+        //        double sy=aHit->GetDetector().dimensions[1];
+        double sz=aHit->GetDetector().dimensions[2];
+        
+        //        double time_min[4] = {0,0,0,0};
+        
+        vector<G4ThreeVector> Lpos = aHit->GetLPos();
+        vector<G4double>      Edep = aHit->GetEdep();
+        vector<G4double>      Dx   = aHit->GetDx();
+        // Charge for each step
+        vector<int> charge = aHit->GetCharges();
+        vector<G4double> times = aHit->GetTime();
+        unsigned int nsteps = Edep.size();
+        double       Etot   = 0;
+        double  X_hit_ave=0.;
+        double  Y_hit_ave=0.;
+        double  Z_hit_ave=0.;
+        double  T_hit_ave=0.;
+        double dLeft  =-10000.;
+        double dRight  =-10000.;
+        
+        for(unsigned int s=0; s<nsteps; s++) Etot = Etot + Edep[s];
+        if(Etot>0)
+        {
+            for(unsigned int s=0; s<nsteps; s++)
+            {
+                double Edep_B=Edep[s];
+                etot_g4=etot_g4+Edep_B;
+                // average hit position XYZ
+                X_hit_ave=X_hit_ave+Lpos[s].x();
+                Y_hit_ave=Y_hit_ave+Lpos[s].y();
+                Z_hit_ave=Z_hit_ave+Lpos[s].z();
+                // average hit time
+                T_hit_ave=T_hit_ave+times[s];
+                
+                //cout << "X " << Lpos[s].x() << " " << "Y " << Lpos[s].y() << " " << "Z " << Lpos[s].z() << " "<< "T " <<times[s] << " " << endl;
+                
+            }
+            X_hit_ave=X_hit_ave/nsteps;
+            Y_hit_ave=Y_hit_ave/nsteps;
+            Z_hit_ave=Z_hit_ave/nsteps;
+            T_hit_ave=T_hit_ave/nsteps;
+            dLeft  =sz-Z_hit_ave;
+            dRight =sz+Z_hit_ave;
+            timeL= dLeft/veff+T_hit_ave;
+            timeR= dRight/veff+T_hit_ave;
+            
+            
+            double *pe_wls;// response for a mip (2..05 MeV energy released in 1cm thick)
+            pe_wls=OVresponse(channel, X_hit_ave, Y_hit_ave, Z_hit_ave);
+            
+            ADC1=G4Poisson(pe_wls[0]*etot_g4/5.0) ; // Scaling for more/less energy release 2.5cm = 5 MeV/MIPs )
+            ADC2=G4Poisson(pe_wls[1]*etot_g4/5.0) ; // Scaling for more/less energy release)
+            //ADC3=G4Poisson(pe_wls[2]*etot_g4/5.0) ; // Scaling for more/less energy release)
+            //ADC4=G4Poisson(pe_wls[3]*etot_g4/5.0) ; // Scaling for more/less energy release)
+            //adding a gaussian spread  TBD
+            //ADC1=(ADC1+G4RandGauss::shoot(0.,13.));
+            //ADC2=(ADC2+G4RandGauss::shoot(0.,13.));
+            //ADC3=(ADC3+G4RandGauss::shoot(0.,13.));
+            //ADC4=(ADC4+G4RandGauss::shoot(0.,13.));
+            if (ADC1<0) ADC1=0.;
+            if (ADC2<0) ADC2=0.;
+            if (ADC3<0) ADC3=0.;
+            if (ADC4<0) ADC4=0.;
+            
+            
+            
+            double sigmaTL=sqrt(pow(0.2*nanosecond,2.)+pow(1.*nanosecond,2.)/(peL+1.));
+            sigmaTL=0.;
+            TDC1=(timeL+G4RandGauss::shoot(0.,sigmaTL))*1000.;//time in ps
+            TDC2=(timeR+G4RandGauss::shoot(0.,sigmaTL))*1000.;//time in ps
+            TDC3=0.;
+            TDC4=0.;
+            
+            
+            //   cout << "channel " << channel << endl;
+            // cout << "X " << X_hit_ave << " " << "Y " << Y_hit_ave << " " << "Z " << Z_hit_ave << " "<< "T " <<T_hit_ave << " " << endl;
+            //  cout << "sipm1 " << pe_sipm[0] << " " << "sipm2 " << pe_sipm[1] << " " << "sipm3 " << pe_sipm[2] << " " << "sipm4 " << pe_sipm[3] << " " << endl;
+            // cout << "dLeft " << dLeft << " " << "timeL" << timeL << " " << endl;
+            
+            //cout << "energy right: " << ADC2 / (adc_conv*sensor_gain*sensor_qe*light_yield) << " E left: " << ADC1 / (adc_conv*sensor_gain*sensor_qe*light_yield) << endl;
+            //cout << "energy forw: " << ADCF / (adc_conv*sensor_gain*sensor_qe*light_yield) << " E back: " << ADCB / (adc_conv*sensor_gain*sensor_qe*light_yield) << endl;
+            
+            //cout << " Light collection: " << light_coll << endl;
+            
+        }
+        // closes (Etot > 0) loop
+        
+    }// end of OV WLS readout
+   
+    
+    
+    
+    
+    
+    
+    
+    
+    
+// INNER VETO or CAL_PADs or BDX-Hodo
+   if(veto_id==1 || veto_id==3|| veto_id==6)
+    {
+        int chan=channel;
+        if (veto_id==3)//Cal_pad
+        {       if (channel==1) chan=301;//top
+            else if (channel==2) chan=302;}//bottom
+        else if (veto_id==6) chan=600+channel;//bdx-hodo
+        
+        double veff=13*cm/ns    ;// TO BE CHECKED
+        // scintillator sizes
+        double sx=aHit->GetDetector().dimensions[0];
+        double sy=aHit->GetDetector().dimensions[1];
         double sz=aHit->GetDetector().dimensions[2];
         
 //        double time_min[4] = {0,0,0,0};
@@ -608,6 +713,7 @@ map<string, double> veto_HitProcess :: integrateDgt(MHit* aHit, int hitn)
         double  Z_hit_ave=0.;
         double  T_hit_ave=0.;
         double dLeft  =-10000.;
+        double dRight  =-10000.;
         
         for(unsigned int s=0; s<nsteps; s++) Etot = Etot + Edep[s];
         if(Etot>0)
@@ -631,16 +737,32 @@ map<string, double> veto_HitProcess :: integrateDgt(MHit* aHit, int hitn)
             Z_hit_ave=Z_hit_ave/nsteps;
             T_hit_ave=T_hit_ave/nsteps;
             dLeft  =sz-Z_hit_ave;
+            dRight =sz+Z_hit_ave;
             timeL= dLeft/veff+T_hit_ave;
             
             
             double *pe_sipm;// response for a mip (2..05 MeV energy released in 1cm thick)
-            pe_sipm=IVresponse(channel, X_hit_ave, Y_hit_ave, Z_hit_ave);
+            pe_sipm=IVresponse(chan, X_hit_ave, Y_hit_ave, Z_hit_ave,sx,sy,sz);
+            
+            //cout << "sx " << sx << " " << "sy " << sy << " " << "sz " << sz << endl;
+            
             
             ADC1=G4Poisson(pe_sipm[0]*etot_g4/2.05) ; // Scaling for more/less energy release)
             ADC2=G4Poisson(pe_sipm[1]*etot_g4/2.05) ; // Scaling for more/less energy release)
             ADC3=G4Poisson(pe_sipm[2]*etot_g4/2.05) ; // Scaling for more/less energy release)
             ADC4=G4Poisson(pe_sipm[3]*etot_g4/2.05) ; // Scaling for more/less energy release)
+            //adding a gaussian spread accoring to Luca's tabel
+            ADC1=(ADC1+G4RandGauss::shoot(0.,13.));
+            ADC2=(ADC2+G4RandGauss::shoot(0.,13.));
+            ADC3=(ADC3+G4RandGauss::shoot(0.,13.));
+            ADC4=(ADC4+G4RandGauss::shoot(0.,13.));
+            if (ADC1<0) ADC1=0.;
+            if (ADC2<0) ADC2=0.;
+            if (ADC3<0) ADC3=0.;
+            if (ADC4<0) ADC4=0.;
+
+            
+            
             double sigmaTL=sqrt(pow(0.2*nanosecond,2.)+pow(1.*nanosecond,2.)/(peL+1.));
             sigmaTL=0.;
             TDC1=(timeL+G4RandGauss::shoot(0.,sigmaTL))*1000.;//time in ps
@@ -666,7 +788,7 @@ map<string, double> veto_HitProcess :: integrateDgt(MHit* aHit, int hitn)
     
     
     //starting paddles
-    if(veto_id==3)
+    if(veto_id==4)
     {
             double optical_coupling[3]= {0., 1.,0.37 };
         for (int s=0; s<3; s++) optical_coupling[s] = optical_coupling[s]*0.34;
@@ -821,6 +943,83 @@ map<string, double> veto_HitProcess :: integrateDgt(MHit* aHit, int hitn)
 
      }// end of paddles
     
+    // EEE digitization
+    if(veto_id==1000)
+    {
+        double sSizeX=aHit->GetDetector().dimensions[0];
+        double sSizeY=aHit->GetDetector().dimensions[1];
+        double sSizeZ=aHit->GetDetector().dimensions[2];
+        
+        vector<G4ThreeVector> Lpos = aHit->GetLPos();
+        vector<G4ThreeVector> Gpos = aHit->GetPos();
+        vector<G4double>      Edep = aHit->GetEdep();
+        vector<G4double>      Dx   = aHit->GetDx();
+        vector<int>         charge = aHit->GetCharges();
+        vector<G4double>     times = aHit->GetTime();
+        
+        unsigned int nsteps = Edep.size();
+        double       Etot   = 0;
+        
+        for(unsigned int s=0; s<nsteps; s++) Etot = Etot + Edep[s];
+        
+        double vX  =0.;
+        double vXL  =0.;
+        double vY =0.;
+        double vZ  =0.;
+        double Thit =0.;
+        double  sigmaX=8.4; // spread in mm
+        double  sigmaZ=8.4; // spread in mm
+        double deltaX=0.;
+        double StripMult=0.;
+        
+        if(Etot>0)
+        {
+            for(unsigned int s=0; s<nsteps; s++) vX = vX + Gpos[s].x();
+            for(unsigned int s=0; s<nsteps; s++) vXL = vXL + Lpos[s].x();
+            for(unsigned int s=0; s<nsteps; s++) vY = vY + Gpos[s].y();
+            for(unsigned int s=0; s<nsteps; s++) vZ = vZ + Gpos[s].z();
+            for(unsigned int s=0; s<nsteps; s++)
+            {Thit = Thit + times[s];
+                //cout <<  "Thits: " <<times[s] <<    " z: " <<Lpos[s].z() << endl ;
+            }
+            // hit pos in cm with gaussian spread
+            deltaX=G4RandGauss::shoot(0.,sigmaX);
+            vXL = vXL / nsteps;
+            double vXLsmeared = vXL+2*deltaX;
+            if(sector==1) // hit in a strip
+            {
+            StripMult=1.;
+                if (abs(deltaX) > (sSizeX+7+vXL)) StripMult=StripMult+1.;// strip gap = 7mm
+                if (abs(deltaX) > (sSizeX+7-vXL)) StripMult=StripMult+1.;// strip gap = 7mm
+                if (abs(deltaX) > (3*sSizeX+2*7+vXL)) StripMult=StripMult+1.;// strip gap = 7mm
+                if (abs(deltaX) > (3*sSizeX+2*7-vXL)) StripMult=StripMult+1.;// strip gap = 7mm
+            
+            }
+            if(sector==2) // hit in a gap
+            {
+            StripMult=0.;
+                if (abs(deltaX) > (sSizeX+vXL)) StripMult=StripMult+1.;// strip gap = 7mm
+                if (abs(deltaX) > (sSizeX-vXL)) StripMult=StripMult+1.;// strip gap = 7mm
+                if (abs(deltaX) > (sSizeX+25+vXL)) StripMult=StripMult+1.;// strip gap = 7mm
+                if (abs(deltaX) > (sSizeX+25-vXL)) StripMult=StripMult+1.;// strip gap = 7mm
+                if (abs(deltaX) > (3*sSizeX+25+vXL)) StripMult=StripMult+1.;// strip gap = 7mm
+                if (abs(deltaX) > (3*sSizeX+25-vXL)) StripMult=StripMult+1.;// strip gap = 7mm
+
+            }
+            cout <<  " xL: " << vXL <<  " XLsm: " << vXLsmeared << " mult: " << StripMult << " check: "<< (sSizeX+3.5)<< endl ;
+
+        vX = (vX /(nsteps)+deltaX)/10.;
+        vY = (vY /(nsteps))/10.;
+        vZ = (vZ /(nsteps)+G4RandGauss::shoot(0.,sigmaZ))/10.;
+        Thit = Thit /(nsteps);
+        }
+
+
+                cout <<  " x: " << vX <<  " y: " << vY << " z: " << vZ <<  " T: " << Thit <<  " Strip: " << channel <<  endl ;
+        //cout <<  " res[0]: " << response[0] <<  " res[1]: " << response[1]<<  " res[2]: " << response[2]<<  " res[3]: " << response[3]  << endl ;
+        
+    }
+    
     
 	dgtz["hitn"]    = hitn;
 	dgtz["sector"]  = sector;
@@ -846,7 +1045,7 @@ vector<identifier>  veto_HitProcess :: processID(vector<identifier> id, G4Step *
 }
 
 
-double* veto_HitProcess::IVresponse(int channel, double xx, double yy,double zz)
+double* veto_HitProcess::IVresponse(int channel, double xx, double yy,double zz, double sx, double sy, double sz)
 {
     
     // Response of the different IV plastic paddles
@@ -857,10 +1056,11 @@ double* veto_HitProcess::IVresponse(int channel, double xx, double yy,double zz)
 
     for(unsigned int s=0; s<4; s++)response[s] = 0.;
     
-    if (channel==1)//top
+    if (channel==1000)//top # Run 1 - fall 2015 - fall 2016 facking channel=1000
     {
         double x=xx/10.;
-        double y=(1058/2.-zz)/10.;
+        double y=(sz+zz)/10.;
+        double normfactor[4]={1.25, 1.65, 1.26, 2.21};
         
         double parm[4][8]={
         {1.99627e+01,	1.64910e-01,	-5.83528e-01,	-7.34483e-03,	-1.25062e-03, 	4.43805e-03,	5.63766e-05, 	1.40682e-05},
@@ -871,54 +1071,113 @@ double* veto_HitProcess::IVresponse(int channel, double xx, double yy,double zz)
     };
 
        for(unsigned int s=0; s<4; s++)
-       response[s] = parm[s][7]*x*x*y + parm[s][6]*x*y*y + parm[s][5]*x*x + parm[s][4]*y*y + parm[s][3]*x*y + parm[s][2]*x + parm[s][1]*y + parm[s][0];
-
+       {response[s] = parm[s][7]*x*x*y + parm[s][6]*x*y*y + parm[s][5]*x*x + parm[s][4]*y*y + parm[s][3]*x*y + parm[s][2]*x + parm[s][1]*y + parm[s][0];
+        response[s] = response[s] * normfactor[s]; }
    //     cout <<  " x: " << x <<  " y: " << y << " zz: " << zz << endl ;
         //cout <<  " res[0]: " << response[0] <<  " res[1]: " << response[1]<<  " res[2]: " << response[2]<<  " res[3]: " << response[3]  << endl ;
 
     }
-    else if (channel==2)//bottom
+    else if (channel==2000)//bottom # Run 1 - fall 2015 - fall 2016 facking channel=2000
     {// Assuming an overall size of 42.8 cm with 4 bars of
         double x=-(xx-428/2)/10;
-        double y=(1058/2.-zz)/10.;
-        
+        double y=(sz+zz)/10.;
+        double normfactor[4]={1.55, 3.9, 2.92, 2.75};
         
         for(unsigned int s=0; s<4; s++) response[s] =0.;
         if (x<10)           response[0]= (-0.000303034)*y*y + (0.00658939)*y + 32.4847; //D1
         if (x>10 && x <20 ) response[1]=   (0.00301674)*y*y + (-0.446544)*y + 27.6374; //D4
         if (x>20 && x <32.8 ) response[2]= (-0.000275694)*y*y + (0.00124251)*y + 18.8999; //D3
         if (x>32.8 && x <42.8 ) response[3]= (-0.00139525)*y*y + (0.104993)*y + 18.1047; //D2
-        
+        for(unsigned int s=0; s<4; s++)
+            response[s] = response[s] * normfactor[s];
+            
             // cout <<  " x: " << x <<  " y: " << y << " zz: " << zz << endl ;
       //  cout <<  " res[0]: " << response[0] <<  " res[1]: " << response[1]<<  " res[2]: " << response[2]<<  " res[3]: " << response[3]  << endl ;
+        
+    }
+    
+    if (channel==1)//top Dec16: waiting for the new pmap I'm using the old top (now positioned as bottom)
+    {
+        double x=xx/10.;
+        double y=(sz-zz)/10.;
+        double normfactor[4]={1.25, 1.65, 1.26, 2.21};
+        
+        double parm[4][8]={
+            {1.99627e+01,	1.64910e-01,	-5.83528e-01,	-7.34483e-03,	-1.25062e-03, 	4.43805e-03,	5.63766e-05, 	1.40682e-05},
+            {1.86162e+01,	4.36475e-02,	-6.78752e-02,	-5.47887e-03,	-1.60512e-04,	-2.33958e-02,	5.55285e-05,	-5.94424e-05},
+            {1.85966e+01,	1.96301e-01,	1.34868e-01,	-7.66131e-04,	-1.61720e-03,	-1.91598e-02,	-1.76198e-06,	-4.72970e-05},
+            {9.73394e+00,	1.56111e-01,	3.27558e-01,	2.45041e-03,	-1.31615e-03,	5.82688e-03,	-1.48528e-05,	2.35177e-05}
+            
+        };
+        
+        for(unsigned int s=0; s<4; s++)
+        {response[s] = parm[s][7]*x*x*y + parm[s][6]*x*y*y + parm[s][5]*x*x + parm[s][4]*y*y + parm[s][3]*x*y + parm[s][2]*x + parm[s][1]*y + parm[s][0];
+            response[s] = response[s] * normfactor[s]; }
+        
+        //cout << "sx " << sx << " " << "sy " << sy << " " << "sz " << sz << endl;
+        //cout <<  " x: " << x <<  " y: " << y << " zz: " << zz << endl ;
+        //cout <<  " res[0]: " << response[0] <<  " res[1]: " << response[1]<<  " res[2]: " << response[2]<<  " res[3]: " << response[3]  << endl ;
+        
+    }
+    else if (channel==2)//bottom # Run 2 - fall 2016 - current | This is the Run 1 top now positioned on the bottom (assuming we moved rigidly down the paddle)
+    {
+        double x=xx/10.;
+        double y=(sz-zz)/10.;
+        double normfactor[4]={1.25, 1.65, 1.26, 2.21};
+        
+        double parm[4][8]={
+            {1.99627e+01,	1.64910e-01,	-5.83528e-01,	-7.34483e-03,	-1.25062e-03, 	4.43805e-03,	5.63766e-05, 	1.40682e-05},
+            {1.86162e+01,	4.36475e-02,	-6.78752e-02,	-5.47887e-03,	-1.60512e-04,	-2.33958e-02,	5.55285e-05,	-5.94424e-05},
+            {1.85966e+01,	1.96301e-01,	1.34868e-01,	-7.66131e-04,	-1.61720e-03,	-1.91598e-02,	-1.76198e-06,	-4.72970e-05},
+            {9.73394e+00,	1.56111e-01,	3.27558e-01,	2.45041e-03,	-1.31615e-03,	5.82688e-03,	-1.48528e-05,	2.35177e-05}
+            
+        };
+        
+        for(unsigned int s=0; s<4; s++)
+        {response[s] = parm[s][7]*x*x*y + parm[s][6]*x*y*y + parm[s][5]*x*x + parm[s][4]*y*y + parm[s][3]*x*y + parm[s][2]*x + parm[s][1]*y + parm[s][0];
+            response[s] = response[s] * normfactor[s]; }
+
+        //cout << "sx " << sx << " " << "sy " << sy << " " << "sz " << sz << endl;
+        //cout <<  " x: " << x <<  " y: " << y << " zz: " << zz << endl ;
+        //cout <<  " res[0]: " << response[0] <<  " res[1]: " << response[1]<<  " res[2]: " << response[2]<<  " res[3]: " << response[3]  << endl ;
         
     }
     else if (channel==3)// Side Upstream
     {// Assuming an overall size of 42.8 cm with 4 bars of
         double x=-xx/10;
-        double y=(yy+346./2)/10.;
+        double y=(yy+sy)/10.;
+        
+        double normfactor[1]={1.13};
         
         double parm[4]={-0.04, -0.05, 1.4, 85.};
-           
+        
         
         for(unsigned int s=0; s<4; s++) response[s] =0.;
         response[0] = parm[0]*x*x + parm[1]*y*y + parm[2]*y + parm[3];
-
-        // cout <<  " x: " << x <<  " y: " << y << " yy: " << yy << endl ;
-         // cout <<  " res[0]: " << response[0] <<  " res[1]: " << response[1]<<  " res[2]: " << response[2]<<  " res[3]: " << response[3]  << endl ;
+        for(unsigned int s=0; s<1; s++)
+            response[s] = response[s] * normfactor[s];
+       
+        //cout << "sx " << sx << " " << "sy " << sy << " " << "sz " << sz << endl;
+        //cout <<  " x: " << x <<  " y: " << y << " yy: " << yy << endl ;
+        //cout <<  " res[0]: " << response[0] <<  " res[1]: " << response[1]<<  " res[2]: " << response[2]<<  " res[3]: " << response[3]  << endl ;
         
     }
     else if (channel==4)// Side Downstream
     {// Assuming an overall size of 42.8 cm with 4 bars of
-        double x=xx/10;
-        double y=(yy+346./2)/10.;
+        double x=-xx/10;
+        double y=(yy+sy)/10.;
         
         double parm[4]={-0.04, -0.05, 1.4, 75.};  
+        double normfactor[1]={1.03};
         
         
         for(unsigned int s=0; s<4; s++) response[s] =0.;
         response[0] = parm[0]*x*x + parm[1]*y*y + parm[2]*y + parm[3];
+        for(unsigned int s=0; s<1; s++)
+            response[s] = response[s] * normfactor[s];
         
+        //cout << "Downstream" << endl;
+        //cout << "sx " << sx << " " << "sy " << sy << " " << "sz " << sz << endl;
         //cout <<  " x: " << x <<  " y: " << y << " yy: " << yy << endl ;
         //cout <<  " res[0]: " << response[0] <<  " res[1]: " << response[1]<<  " res[2]: " << response[2]<<  " res[3]: " << response[3]  << endl ;
         
@@ -927,7 +1186,7 @@ double* veto_HitProcess::IVresponse(int channel, double xx, double yy,double zz)
     else if (channel==5)//Right
     {
         double x=-yy/10.;
-        double y=(1058/2.-zz)/10.;
+        double y=(sz-zz)/10.;
 
         double parm[4][8]={
             {2.34524e+01,	4.28317e-02,	-5.91894e-01,	-5.13309e-03,	-2.47905e-04,	-3.44887e-03,	4.25481e-05,	-1.03817e-05},
@@ -936,10 +1195,13 @@ double* veto_HitProcess::IVresponse(int channel, double xx, double yy,double zz)
             {1.74834e+01,	1.83925e-01,	5.36737e-01,	7.09769e-04,	-1.64490e-03,	7.48199e-03,	3.43011e-08,	2.11894e-05}
             
         };
-        
+        double normfactor[4]={0.97, 1.25, 1.06, 1.09};
+
         for(unsigned int s=0; s<4; s++)
-        response[s] = parm[s][7]*x*x*y + parm[s][6]*x*y*y + parm[s][5]*x*x + parm[s][4]*y*y + parm[s][3]*x*y + parm[s][2]*x + parm[s][1]*y + parm[s][0];
+        {response[s] = parm[s][7]*x*x*y + parm[s][6]*x*y*y + parm[s][5]*x*x + parm[s][4]*y*y + parm[s][3]*x*y + parm[s][2]*x + parm[s][1]*y + parm[s][0];
+            response[s] = response[s] * normfactor[s];}
         
+        //cout << "sx " << sx << " " << "sy " << sy << " " << "sz " << sz << endl;
         //cout <<  " x: " << x <<  " y: " << y << " zz: " << zz << endl ;
         //cout <<  " res[0]: " << response[0] <<  " res[1]: " << response[1]<<  " res[2]: " << response[2]<<  " res[3]: " << response[3]  << endl ;
        
@@ -947,7 +1209,7 @@ double* veto_HitProcess::IVresponse(int channel, double xx, double yy,double zz)
     else if (channel==6)//Left
     {
         double x=-yy/10.;
-        double y=(1058/2.-zz)/10.;
+        double y=(sz-zz)/10.;
         
         double parm[4][8]={
             {8.12418e+00,	6.61315e-02,	-2.99641e-01,	-9.10408e-04,	-6.79474e-04,	2.00648e-03,	1.24963e-05,	-1.73809e-05},
@@ -956,10 +1218,54 @@ double* veto_HitProcess::IVresponse(int channel, double xx, double yy,double zz)
             {9.73394e+00,	1.56111e-01,	3.27558e-01,	2.45041e-03,	-1.31615e-03,	5.82688e-03,	-1.48528e-05,	2.35177e-05}
             
         };
+        double normfactor[4]={1.27, 1.14, 1.0, 0.83};
         
         for(unsigned int s=0; s<4; s++)
-        response[s] = parm[s][7]*x*x*y + parm[s][6]*x*y*y + parm[s][5]*x*x + parm[s][4]*y*y + parm[s][3]*x*y + parm[s][2]*x + parm[s][1]*y + parm[s][0];
+        {response[s] = parm[s][7]*x*x*y + parm[s][6]*x*y*y + parm[s][5]*x*x + parm[s][4]*y*y + parm[s][3]*x*y + parm[s][2]*x + parm[s][1]*y + parm[s][0];
+        response[s] = response[s] * normfactor[s];}
+        //cout << "Left" << endl;
+        //cout << "sx " << sx << " " << "sy " << sy << " " << "sz " << sz << endl;
+        //cout <<  " x: " << x <<  " y: " << y << " zz: " << zz << endl ;
+        //cout <<  " res[0]: " << response[0] <<  " res[1]: " << response[1]<<  " res[2]: " << response[2]<<  " res[3]: " << response[3]  << endl ;
+
+    }
+    else if (channel==301 || channel==302)// Cal_pad top/bottom TB refined with measured response. So far using old parametrization of D1
+    {// Assuming an overall size of 10cm x 40cm
+        //double x=-(xx-sx)/10;
+        double y=(sz-zz)/10.;
+        double normfactor[4]={1.55, 3.9, 2.92, 2.75};
         
+        for(unsigned int s=0; s<4; s++) response[s] =0.;
+             response[0]= (-0.000303034)*y*y + (0.00658939)*y + 32.4847; //D1
+        //if (x>10 && x <20 ) response[1]=   (0.00301674)*y*y + (-0.446544)*y + 27.6374; //D4
+        //if (x>20 && x <32.8 ) response[2]= (-0.000275694)*y*y + (0.00124251)*y + 18.8999; //D3
+        //if (x>32.8 && x <42.8 ) response[3]= (-0.00139525)*y*y + (0.104993)*y + 18.1047; //D2
+        for(unsigned int s=0; s<4; s++)
+            response[s] = response[s] * normfactor[s];
+        
+         //cout <<  " x: " << x <<  " y: " << y << " zz: " << zz << endl ;
+        //cout <<  " res[0]: " << response[0] <<  " res[1]: " << response[1]<<  " res[2]: " << response[2]<<  " res[3]: " << response[3]  << endl ;
+        
+    }
+    else if (channel>=600 & channel<700)// BDX-hodo. So far using old parametrization of D1
+    {// Assuming an overall size of 10cm x 40cm
+        double x=-(xx-sx)/10;
+        double y=(sz-zz)/10.;
+        double normfactor[4]={1.55, 3.9, 2.92, 2.75};
+        
+        for(unsigned int s=0; s<4; s++) response[s] =0.;
+        response[0]= (-0.000303034)*y*y + (0.00658939)*y + 32.4847; //D1
+        //if (x>10 && x <20 ) response[1]=   (0.00301674)*y*y + (-0.446544)*y + 27.6374; //D4
+        //if (x>20 && x <32.8 ) response[2]= (-0.000275694)*y*y + (0.00124251)*y + 18.8999; //D3
+        //if (x>32.8 && x <42.8 ) response[3]= (-0.00139525)*y*y + (0.104993)*y + 18.1047; //D2
+        for(unsigned int s=0; s<4; s++)
+            response[s] = response[s] * normfactor[s];
+        //cout <<  " ++ HIT BEGIN ++++++" << endl ;
+        //cout <<  " chan: " << channel << endl ;
+        //cout <<  " x: " << x <<  " y: " << y << " zz: " << zz << endl ;
+        //cout <<  " res[0]: " << response[0] <<  " res[1]: " << response[1]<<  " res[2]: " << response[2]<<  " res[3]: " << response[3]  << endl ;
+        //cout <<  " ++ HIT END ++++++" << channel << endl ;
+   
     }
 
   //  cout <<  " res[0]: " << response[0] <<  " res[1]: " << response[1]<<  " res[2]: " << response[2]<<  " res[3]: " << response[3]  << endl ;
@@ -981,6 +1287,29 @@ double* veto_HitProcess::IVresponseProposal(int channel, double xx, double yy,do
     {
         double x=xx/10.;
         double y=(sz-zz)/10.;
+        double normfactor[4]={1.23, 1.45, 1.25, 1.91};
+
+        double parm[4][8]={
+            {1.99627e+01,	1.64910e-01,	-5.83528e-01,	-7.34483e-03,	-1.25062e-03, 	4.43805e-03,	5.63766e-05, 	1.40682e-05},
+            {1.86162e+01,	4.36475e-02,	-6.78752e-02,	-5.47887e-03,	-1.60512e-04,	-2.33958e-02,	5.55285e-05,	-5.94424e-05},
+            {1.85966e+01,	1.96301e-01,	1.34868e-01,	-7.66131e-04,	-1.61720e-03,	-1.91598e-02,	-1.76198e-06,	-4.72970e-05},
+            {9.73394e+00,	1.56111e-01,	3.27558e-01,	2.45041e-03,	-1.31615e-03,	5.82688e-03,	-1.48528e-05,	2.35177e-05}
+            
+        };
+        
+        for(unsigned int s=0; s<4; s++)
+        {response[s] = parm[s][7]*x*x*y + parm[s][6]*x*y*y + parm[s][5]*x*x + parm[s][4]*y*y + parm[s][3]*x*y + parm[s][2]*x + parm[s][1]*y + parm[s][0];
+        response[s] = response[s] * normfactor[s];}
+        //     cout <<  " x: " << x <<  " y: " << y << " zz: " << zz << endl ;
+        //cout <<  " res[0]: " << response[0] <<  " res[1]: " << response[1]<<  " res[2]: " << response[2]<<  " res[3]: " << response[3]  << endl ; 
+        
+    }
+    else if (channel==2)//bottom copying the top with X,Y swapped
+    {// Assuming an overall size of 42.8 cm with 4 bars of
+        double x=-(xx-sx)/10;
+        double y=(sz-zz)/10.;
+        
+        double normfactor[4]={1.23, 1.45, 1.25, 1.91};
         
         double parm[4][8]={
             {1.99627e+01,	1.64910e-01,	-5.83528e-01,	-7.34483e-03,	-1.25062e-03, 	4.43805e-03,	5.63766e-05, 	1.40682e-05},
@@ -991,60 +1320,51 @@ double* veto_HitProcess::IVresponseProposal(int channel, double xx, double yy,do
         };
         
         for(unsigned int s=0; s<4; s++)
-        response[s] = parm[s][7]*x*x*y + parm[s][6]*x*y*y + parm[s][5]*x*x + parm[s][4]*y*y + parm[s][3]*x*y + parm[s][2]*x + parm[s][1]*y + parm[s][0];
-        
-        //     cout <<  " x: " << x <<  " y: " << y << " zz: " << zz << endl ;
-        //cout <<  " res[0]: " << response[0] <<  " res[1]: " << response[1]<<  " res[2]: " << response[2]<<  " res[3]: " << response[3]  << endl ;
-        
-    }
-    else if (channel==2)//bottom
-    {// Assuming an overall size of 42.8 cm with 4 bars of
-        double x=-(xx-sx)/10;
-        double y=(sz-zz)/10.;
-        
-        
-        for(unsigned int s=0; s<4; s++) response[s] =0.;
-        if (x<10)           response[0]= (-0.000303034)*y*y + (0.00658939)*y + 32.4847; //D1
-        if (x>10 && x <20 ) response[1]=   (0.00301674)*y*y + (-0.446544)*y + 27.6374; //D4
-        if (x>20 && x <32.8 ) response[2]= (-0.000275694)*y*y + (0.00124251)*y + 18.8999; //D3
-        if (x>32.8 && x <42.8 ) response[3]= (-0.00139525)*y*y + (0.104993)*y + 18.1047; //D2
-        
+        {response[s] = parm[s][7]*x*x*y + parm[s][6]*x*y*y + parm[s][5]*x*x + parm[s][4]*y*y + parm[s][3]*x*y + parm[s][2]*x + parm[s][1]*y + parm[s][0];
+            response[s] = response[s] * normfactor[s];}
+    
         // cout <<  " x: " << x <<  " y: " << y << " zz: " << zz << endl ;
         //  cout <<  " res[0]: " << response[0] <<  " res[1]: " << response[1]<<  " res[2]: " << response[2]<<  " res[3]: " << response[3]  << endl ;
         
     }
-    else if (channel==6)// Side Upstream
+    else if (channel==3)// Side Upstream
     {// Assuming an overall size of 42.8 cm with 4 bars of
         double x=-xx/10;
         double y=(yy+sy)/10.;
         
         double parm[4]={-0.04, -0.05, 1.4, 85.};
-        
+        double normfactor[1]={1.13};
+       
         
         for(unsigned int s=0; s<4; s++) response[s] =0.;
         response[0] = parm[0]*x*x + parm[1]*y*y + parm[2]*y + parm[3];
-        
+        for(unsigned int s=0; s<1; s++)
+            response[s] = response[s] * normfactor[s];
+
         // cout <<  " x: " << x <<  " y: " << y << " yy: " << yy << endl ;
         // cout <<  " res[0]: " << response[0] <<  " res[1]: " << response[1]<<  " res[2]: " << response[2]<<  " res[3]: " << response[3]  << endl ;
         
     }
-    else if (channel==5)// Side Downstream
+    else if (channel==4)// Side Downstream
     {// Assuming an overall size of 42.8 cm with 4 bars of
         double x=xx/10;
         double y=(yy+sy)/10.;
         
         double parm[4]={-0.04, -0.05, 1.4, 75.};
+        double normfactor[1]={1.03};
         
         
         for(unsigned int s=0; s<4; s++) response[s] =0.;
         response[0] = parm[0]*x*x + parm[1]*y*y + parm[2]*y + parm[3];
-        
+        for(unsigned int s=0; s<1; s++)
+            response[s] = response[s] * normfactor[s];
+
         //cout <<  " x: " << x <<  " y: " << y << " yy: " << yy << endl ;
         //cout <<  " res[0]: " << response[0] <<  " res[1]: " << response[1]<<  " res[2]: " << response[2]<<  " res[3]: " << response[3]  << endl ;
         
     }
     
-    else if (channel==3)//Right
+    else if (channel==5)//Right
     {
         double x=-yy/10.;
         double y=(sz-zz)/10.;
@@ -1056,15 +1376,16 @@ double* veto_HitProcess::IVresponseProposal(int channel, double xx, double yy,do
             {1.74834e+01,	1.83925e-01,	5.36737e-01,	7.09769e-04,	-1.64490e-03,	7.48199e-03,	3.43011e-08,	2.11894e-05}
             
         };
-        
+        double normfactor[4]={1.08, 1.02, 0.96, 0.97};
+
         for(unsigned int s=0; s<4; s++)
-        response[s] = parm[s][7]*x*x*y + parm[s][6]*x*y*y + parm[s][5]*x*x + parm[s][4]*y*y + parm[s][3]*x*y + parm[s][2]*x + parm[s][1]*y + parm[s][0];
-        
+        {response[s] = parm[s][7]*x*x*y + parm[s][6]*x*y*y + parm[s][5]*x*x + parm[s][4]*y*y + parm[s][3]*x*y + parm[s][2]*x + parm[s][1]*y + parm[s][0];
+                    response[s] = response[s] * normfactor[s];}
         //cout <<  " x: " << x <<  " y: " << y << " zz: " << zz << endl ;
         //cout <<  " res[0]: " << response[0] <<  " res[1]: " << response[1]<<  " res[2]: " << response[2]<<  " res[3]: " << response[3]  << endl ;
         
     }
-    else if (channel==4)//Left
+    else if (channel==6)//Left
     {
         double x=-yy/10.;
         double y=(sz-zz)/10.;
@@ -1076,16 +1397,105 @@ double* veto_HitProcess::IVresponseProposal(int channel, double xx, double yy,do
             {9.73394e+00,	1.56111e-01,	3.27558e-01,	2.45041e-03,	-1.31615e-03,	5.82688e-03,	-1.48528e-05,	2.35177e-05}
             
         };
-        
+        double normfactor[4]={1.09, 1.14, 0.68, 0.63};
+
         for(unsigned int s=0; s<4; s++)
-        response[s] = parm[s][7]*x*x*y + parm[s][6]*x*y*y + parm[s][5]*x*x + parm[s][4]*y*y + parm[s][3]*x*y + parm[s][2]*x + parm[s][1]*y + parm[s][0];
-        
+        {response[s] = parm[s][7]*x*x*y + parm[s][6]*x*y*y + parm[s][5]*x*x + parm[s][4]*y*y + parm[s][3]*x*y + parm[s][2]*x + parm[s][1]*y + parm[s][0];
+        response[s] = response[s] * normfactor[s];}
+    
     }
     
     //  cout <<  " res[0]: " << response[0] <<  " res[1]: " << response[1]<<  " res[2]: " << response[2]<<  " res[3]: " << response[3]  << endl ;
     // cout <<  " res[0]: " << response[0] << " channel " << channel<<endl;
     return response;
 }
+
+
+
+
+double* veto_HitProcess::OVresponse(int channel, double xx, double yy,double zz)
+{
+    
+    // Response of the different OV plastic paddles read by WLS + PMT
+    // ch
+    //
+    //
+    static double response[4];
+    
+    for(unsigned int s=0; s<4; s++)response[s] = 0.;
+    
+    if (channel==1)// TOp read by Left and Right sides
+    {
+        double pd_len=1810/10.; //in cm
+        //double x=xx/10.;
+        double y=pd_len/2+zz/10; //in cm
+        double normfactor[2]={1.0, 1.0};
+        
+        double parm[2][2]={
+            {178., 177.3},
+            {200., 259}
+        };
+        
+
+        response[0] =  normfactor[0]*parm[0][0]* exp(-y/parm[0][1]); // Right/Upstream
+        response[1] =  normfactor[1]*parm[1][0]* exp(-(pd_len-y)/parm[1][1]); // Left/Downstream
+
+        //    cout <<  " x: " << x <<  " y: " << y << " zz: " << zz << endl ;
+        //cout <<  " res[0]: " << response[0] <<  " res[1]: " << response[1]<<  " res[2]: " << response[2]<<  " res[3]: " << response[3]  << endl ;
+    }
+    if (channel==5)// Upstream p read by Left and Right sides
+    {
+        double pd_len=668/10.; //in cm
+        //double x=xx/10.;
+        double y=pd_len/2+yy/10; //in cm
+        double normfactor[2]={1.0, 1.0};
+        
+        double parm[2][2]={
+            {245., 480},
+            {245., 480}
+        };
+        
+        
+        response[0] =  normfactor[0]*parm[0][0]* exp(-y/parm[0][1]); // Right/bottom
+        response[0] = 0.; // Only TOP readout
+        response[1] =  normfactor[1]*parm[1][0]* exp(-(pd_len-y)/parm[1][1]); // Left/top
+        response[0] = response[1]; // Forcing ADC1 to have the only readout channel
+        response[1] = 0.;
+        
+        //cout <<  " x: " << x <<  " y: " << y << " zz: " << zz << endl ;
+        //cout <<  " res[0]: " << response[0] <<  " res[1]: " << response[1]<<  " res[2]: " << response[2]<<  " res[3]: " << response[3]  << endl ;
+    }
+    if (channel==6)// Upstream p read by Left and Right sides
+    {
+        double pd_len=668/10.; //in cm
+        //double x=xx/10.;
+        double y=pd_len/2+yy/10; //in cm
+        double normfactor[2]={1.0, 1.0};
+        
+        double parm[2][2]={
+            {243., 274},
+            {243., 274}
+        };
+        
+        
+        response[0] =  normfactor[0]*parm[0][0]* exp(-y/parm[0][1]); // Right/bottom
+        response[0] = 0.; // Only TOP readout
+        response[1] =  normfactor[1]*parm[1][0]* exp(-(pd_len-y)/parm[1][1]); // Left/top
+        response[0] = response[1]; // Forcing ADC1 to have the only readout channel
+        response[1] = 0.;
+        
+        //cout <<  " x: " << x <<  " y: " << y << " zz: " << zz << endl ;
+       // cout <<  " res[0]: " << response[0] <<  " res[1]: " << response[1]<<  " res[2]: " << response[2]<<  " res[3]: " << response[3]  << endl ;
+    }
+  
+    //  cout <<  " res[0]: " << response[0] <<  " res[1]: " << response[1]<<  " res[2]: " << response[2]<<  " res[3]: " << response[3]  << endl ;
+    // cout <<  " res[0]: " << response[0] << " channel " << channel<<endl;
+    return response;
+}
+
+
+
+
 
 
 double veto_HitProcess::BirksAttenuation(double destep, double stepl, int charge, double birks)
@@ -1132,25 +1542,25 @@ map< string, vector <int> >  veto_HitProcess :: multiDgt(MHit* aHit, int hitn)
 // - electronicNoise: returns a vector of hits generated / by electronics.
 vector<MHit*> veto_HitProcess :: electronicNoise()
 {
-	vector<MHit*> noiseHits;
-
-	// first, identify the cells that would have electronic noise
-	// then instantiate hit with energy E, time T, identifier IDF:
-	//
-	// MHit* thisNoiseHit = new MHit(E, T, IDF, pid);
-
-	// push to noiseHits collection:
-	// noiseHits.push_back(thisNoiseHit)
-
-	return noiseHits;
+    vector<MHit*> noiseHits;
+    
+    // first, identify the cells that would have electronic noise
+    // then instantiate hit with energy E, time T, identifier IDF:
+    //
+    // MHit* thisNoiseHit = new MHit(E, T, IDF, pid);
+    
+    // push to noiseHits collection:
+    // noiseHits.push_back(thisNoiseHit)
+    
+    return noiseHits;
 }
 
 // - charge: returns charge/time digitized information / step
 map< int, vector <double> > veto_HitProcess :: chargeTime(MHit* aHit, int hitn)
 {
-	map< int, vector <double> >  CT;
-
-	return CT;
+    map< int, vector <double> >  CT;
+    
+    return CT;
 }
 
 // - voltage: returns a voltage value for a given time. The inputs are:
@@ -1158,8 +1568,12 @@ map< int, vector <double> > veto_HitProcess :: chargeTime(MHit* aHit, int hitn)
 // time (coming from timeAtElectronics)
 double veto_HitProcess :: voltage(double charge, double time, double forTime)
 {
-	return 0.0;
+    return 0.0;
 }
+
+
+
+
 
 
 

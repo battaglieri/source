@@ -31,9 +31,18 @@ MPrimaryGeneratorAction::MPrimaryGeneratorAction(goptions *opts)
 	input_gen      = gemcOpt->optMap["INPUT_GEN_FILE"].args;
 	background_gen = gemcOpt->optMap["MERGE_LUND_BG"].args;
 	cosmics        = gemcOpt->optMap["COSMICRAYS"].args;
+    string cArea = gemcOpt->optMap["COSMICAREA"].args;
 	GEN_VERBOSITY  = gemcOpt->optMap["GEN_VERBOSITY"].arg;
     ntoskip        = gemcOpt->optMap["SKIPNGEN"].arg;
 
+    muonDecay = 0;
+    muonDecay = gemcOpt->optMap["FORCE_MUON_RADIATIVE_DECAY"].arg;
+    
+    Nsup = 0;
+    Ntot = 0;
+    
+
+    
 	particleTable = G4ParticleTable::GetParticleTable();
 
 	beamPol  = 0;
@@ -44,10 +53,15 @@ MPrimaryGeneratorAction::MPrimaryGeneratorAction(goptions *opts)
 
 	if(input_gen == "gemc_internal")
 	{
-		vector<string> cvalues = get_info(gemcOpt->optMap["COSMICAREA"].args, string(",\""));
+		
+        vector<string> cvalues1 = get_info(gemcOpt->optMap["HALL_DIMENSIONS"].args, string(",\""));
+        HallDim = G4ThreeVector(get_number(cvalues1[0]), get_number(cvalues1[1]), get_number(cvalues1[2]));
+        HallRadius = sqrt(HallDim[0] * HallDim[0] + HallDim[1] * HallDim[1] + HallDim[2] * HallDim[2]);
 
-		if(cvalues.size() < 4)
-		cout << "  !!!  Warning:  COSMICAREA flag not set correctly. It should be 4 numbers: x,y,z and R." << endl;
+        vector<string> cvalues = get_info(gemcOpt->optMap["COSMICAREA"].args, string(",\""));
+        
+        if (cvalues.size() < 4) cout << "  !!!  Warning:  COSMICAREA flag not set correctly. It should be 4 numbers: x,y,z and R, with optional surface type (sph || sphere || cyl, default sph)" << endl;
+        
 
 		cosmicTarget = G4ThreeVector(get_number(cvalues[0]), get_number(cvalues[1]), get_number(cvalues[2]));
 		cosmicRadius = get_number(cvalues[3]);
@@ -86,6 +100,7 @@ MPrimaryGeneratorAction::MPrimaryGeneratorAction(goptions *opts)
 			cout << hd_msg << " Cosmic Radius :" << cosmicRadius/cm << " cm " << endl;
 			cout << hd_msg << " Cosmic Surface Type: " << cosmicGeo << endl;
 			cout << hd_msg << " Cosmic Particle Type: " << cosmicParticle << endl;
+            if (cosmicParticle == "muon" && muonDecay == 1) cout << hd_msg << " radiative muon decay BR=100%" << endl;
 		}
 	}
 
@@ -276,112 +291,222 @@ void MPrimaryGeneratorAction::GeneratePrimaries(G4Event* anEvent)
 		// internal, cosmic model
 		// paper: A. Dar, Phys.Rev.Lett, 51,3,p.227 (1983)
 		else
-		{
-			bool cosmicNeutrons=false;
-			if(cosmicParticle != "muon") cosmicNeutrons=true;
-			double thisMom;
-			double thisthe;
-			double thisPhi;
-			double akine;
-
-			// first randomly pick a number inside the sphere
-			double cosmicVX = 100000;
-			double cosmicVY = 100000;
-			double cosmicVZ = 100000;
-
-			while( (cosmicVX - cosmicTarget.x() )*(cosmicVX - cosmicTarget.x() ) +
-					 (cosmicVY - cosmicTarget.y() )*(cosmicVY - cosmicTarget.y() ) +
-					 (cosmicVZ - cosmicTarget.z() )*(cosmicVZ - cosmicTarget.z() ) >= cosmicRadius*cosmicRadius )
-			{
-
-				// point generated inside spherical or cylindrical volume
-				if(cosmicGeo == "sph" || cosmicGeo == "sphere"){
-			  // point inside spherical volume
-			  cosmicVX = cosmicTarget.x() - cosmicRadius + 2*cosmicRadius*G4UniformRand();
-			  cosmicVY = cosmicTarget.y() - cosmicRadius + 2*cosmicRadius*G4UniformRand();
-			  cosmicVZ = cosmicTarget.z() - cosmicRadius + 2*cosmicRadius*G4UniformRand();
-				}else{
-			  // point inside a cylinder, height of the cylinder = cosmicRadius/2.
-			  double h = cosmicRadius/2.;
-			  cosmicVX = -cosmicRadius + 2*cosmicRadius*G4UniformRand();
-			  double sig=1.;
-			  if((2.*G4UniformRand()-1)<0) sig =-1.;
-			  cosmicVY = h*(2.*G4UniformRand()-1)*sig;
-			  cosmicVZ = -cosmicRadius + 2*cosmicRadius*G4UniformRand();
-				}
-			}
-
-			if(cosmicNeutrons) {
-				if (cminp<0.1 || cmaxp>10000) cout <<"WARNING !!!! COSMIC NEUTRONS E (MeV) is OUT OF THE VALID RANGE !!!"<<endl;
-				// Model by Ashton (1973)
-				// now generating random momentum, cos(theta)
-				// the maximum of the distribution is the lowest momentum and 0 theta
-				// normalizing by that number
-				double cosmicProb = G4UniformRand()*cosmicNeutBeam(0., cminp/GeV);
-				thisMom = cminp + (cmaxp-cminp)*G4UniformRand(); // momentum in MeV/c
-				thisthe = pi*G4UniformRand()/2.0; // [0,pi/2] zenith angle
-				while(cosmicNeutBeam(thisthe, thisMom/GeV) < cosmicProb){
-					thisMom = cminp + (cmaxp-cminp)*G4UniformRand();
-					thisthe = pi*G4UniformRand()/2.0;
-				}
-			}else{
-				// muons
-				// now generating random momentum, cos(theta)
-				// the maximum of the distribution is the lowest momentum and 0 theta
-				// normalizing by that number
-				double cosmicProb = G4UniformRand()*cosmicMuBeam(0, cminp/GeV);
-				thisMom = (cminp + (cmaxp-cminp)*G4UniformRand());
-				thisthe = pi*G4UniformRand()/2.0;
-				while(cosmicMuBeam(thisthe, thisMom/GeV) < cosmicProb)
-				{
-			  thisMom = (cminp + (cmaxp-cminp)*G4UniformRand());
-			  thisthe = pi*G4UniformRand()/2.0;
-				}
-			}
-
-			// isotropic in phi
-			thisPhi = -pi + 2*pi*G4UniformRand();
-
-			// now finding the vertex. Assuming twice the radius as starting point
-			// attention:
-			// axis transformation, z <> y,  x <> -x
-			// cause the cosmics come from the sky
-			double pvx = cosmicVX - 2*cosmicRadius*sin(thisthe)*cos(thisPhi);
-			double pvy = cosmicVY + 2*cosmicRadius*cos(thisthe);
-			double pvz = cosmicVZ + 2*cosmicRadius*sin(thisthe)*sin(thisPhi);
-			particleGun->SetParticlePosition(G4ThreeVector(pvx, pvy, pvz));
-
-			if(cosmicNeutrons) {
-				Particle= particleTable->FindParticle("neutron");
-			}else{
-				// choosing charge of the muons
-				string muonType = "mu+";
-				if(G4UniformRand() <= 0.5)
-				muonType = "mu-";
-				Particle = particleTable->FindParticle(muonType);
-			}
-			double mass = Particle->GetPDGMass();
-			akine = sqrt(thisMom*thisMom + mass*mass) - mass ;
-
-			particleGun->SetParticleDefinition(Particle);
-
-			// when assigning momentum the direction is reversed
-			G4ThreeVector beam_dir(cos(thisPhi)*sin(thisthe), -cos(thisthe), -sin(thisPhi)*sin(thisthe));
-
-			if(GEN_VERBOSITY > 3)
-			{
-				cout << hd_msg << " Particle id=" <<  Particle->GetParticleName()
-				<< "  Vertex=" << G4ThreeVector(pvx, pvy, pvz)/cm << "cm,  momentum=" << thisMom/GeV << " GeV, theta="
-				<< thisthe/deg <<  " degrees,   phi=" << thisPhi/deg << " degrees" << endl;
-				cout << endl;
-			}
-
-
-			particleGun->SetParticleEnergy(akine);
-			particleGun->SetParticleMomentumDirection(beam_dir);
-			particleGun->SetNumberOfParticles(1);
-			particleGun->GeneratePrimaryVertex(anEvent);
-		}
+        {
+            bool cosmicNeutrons = true;
+            if (cosmicParticle == "muon") cosmicNeutrons = false;
+            
+            double thisMom;
+            double thisKinE, KinEmin, KinEmax;
+            double thisthe;
+            double thisPhi;
+            double akine;
+            
+            // first randomly pick a number inside the sphere
+            
+            double cosmicVX = 100000;
+            double cosmicVY = 100000;
+            double cosmicVZ = 100000;
+            double h = 0.;
+            
+            
+            // Uniiform over a cylinder R=cosmicRadius H=2h=CosmicRadius
+            if (cosmicGeo == "cyl") {
+                h = cosmicRadius / 2;
+                cosmicVX = -cosmicRadius + 2 * cosmicRadius * G4UniformRand();
+                cosmicVZ = -cosmicRadius + 2 * cosmicRadius * G4UniformRand();
+                cosmicVY = -h + 2 * h * G4UniformRand();
+                while (sqrt(cosmicVX * cosmicVX + cosmicVZ * cosmicVZ) > cosmicRadius) {
+                    cosmicVX = -cosmicRadius + 2 * cosmicRadius * G4UniformRand();
+                    cosmicVZ = -cosmicRadius + 2 * cosmicRadius * G4UniformRand();
+                }
+            } else if (cosmicGeo == "rec") {
+                h = cosmicRadius;
+                // Uniform over a rectangular surface Z=6*Radius X=2*Radius Y=2*h=2*Radius
+                cosmicVX = (-cosmicRadius + 2 * cosmicRadius * G4UniformRand());
+                cosmicVZ = 3 * (-cosmicRadius + 2 * cosmicRadius * G4UniformRand());
+                cosmicVY = -h + 2 * h * G4UniformRand();
+            }
+            else if ((cosmicGeo == "sph" || cosmicGeo == "sphere")&&(!cosmicNeutrons)) {  //sphere and muons later (that is the correct one for muons!!!!!)
+                // point on a spherical surface
+                cosmicVX = -cosmicRadius + 2 * cosmicRadius * G4UniformRand();
+                cosmicVY = -cosmicRadius + 2 * cosmicRadius * G4UniformRand();
+                cosmicVZ = -cosmicRadius + 2 * cosmicRadius * G4UniformRand();
+            }
+            //cout << cosmicVX  << " "<< cosmicVY  << " "<< cosmicVZ  << " " << endl;
+            
+            if (cosmicNeutrons) {
+                // if (cminp<0.1 || cmaxp>10000) cout <<"WARNING !!!! COSMIC NEUTRONS E (MeV) is OUT OF THE VALID RANGE !!!"<<endl;
+                // Model by Ashton (1973)
+                
+                double cosmicProbMax = cosmicNeutBeam(0., cminp / GeV);
+                double cosmicProbMin = cosmicNeutBeam(pi / 2., cmaxp / GeV);
+                double cosmicProb = G4UniformRand()* (cosmicProbMax - cosmicProbMin) + cosmicProbMin;
+                thisMom = cminp + (cmaxp - cminp) * G4UniformRand(); // momentum in MeV/c
+                thisthe = pi * G4UniformRand()/ 2.0; // [0,pi/2] zenith angle
+                //cout<< thisMom<< " before"<< " "<< cosmicProb <<endl;
+                double cosmic = cosmicNeutBeam(thisthe, thisMom / GeV);
+                //cout<< thisMom<< "after "<< " "<< cosmicProb <<endl;
+                //cosmic *= (cosmicProbMax-cosmicProbMin);
+                //cosmic += cosmicProbMin;
+                int Nextr = 0;
+                while (cosmic < cosmicProb && Nextr < 1000000) {
+                    thisMom = 0;
+                    Nextr = Nextr + 1;
+                    thisMom = cminp + (cmaxp - cminp) * G4UniformRand();
+                    thisthe = pi * G4UniformRand()/ 2.0;
+                    cosmic = cosmicNeutBeam(thisthe, thisMom / GeV);
+                }
+                //cout<< thisMom<< " "<< cosmic <<" "<< cosmicProb <<endl;
+                if (Nextr > 999999) cout << " !!!! LOOPING IN N EXTRACTION !!! exceeded " << Nextr << " extractions !!!" << Nextr << endl;
+                thisPhi = -pi + 2 * pi * G4UniformRand();
+                
+            } else {		      //muons
+                KinEmin = sqrt(cminp / GeV * cminp / GeV + 0.104 * 0.104) - 0.104;
+                KinEmax = sqrt(cmaxp / GeV * cmaxp / GeV + 0.104 * 0.104) - 0.104;
+                
+                double cosmicProbMax = cosmicMuBeam(1., KinEmin);//max prob for theta vertical and low momentum
+                double cosmicProbMin = cosmicMuBeam(0., KinEmax);//min prob for theta horizontal and high momentum
+                double cosmicProb = G4UniformRand()* (cosmicProbMax - cosmicProbMin) + cosmicProbMin;
+                
+                double thiscthe;
+                
+                thiscthe = G4UniformRand();//ctheta uniform between 0 and 1
+                thisthe = acos(thiscthe);
+                
+                thisKinE = (KinEmax - KinEmin) * G4UniformRand()+ KinEmin;
+                thisMom = sqrt((thisKinE + 0.104) * (thisKinE + 0.104) - 0.104 * 0.104);
+                
+                double cosmic = cosmicMuBeam(thiscthe, thisKinE);
+                
+                int Nextr = 0;
+                while (cosmic < cosmicProb && Nextr < 1000000) {
+                    thisMom = 0;
+                    Nextr = Nextr + 1;
+                    
+                    thisKinE = (KinEmax - KinEmin) * G4UniformRand()+ KinEmin;
+                    thisMom = sqrt((thisKinE + 0.104) * (thisKinE + 0.104) - 0.104 * 0.104);
+                    
+                    thiscthe = G4UniformRand();
+                    thisthe = acos(thiscthe);
+                    
+                    cosmic = cosmicMuBeam(thiscthe, thisKinE);
+                    cosmicProb = G4UniformRand()* (cosmicProbMax - cosmicProbMin) + cosmicProbMin;
+                }
+                if (Nextr > 999999) cout << " !!!! LOOPING IN MU EXTRACTION !!! exceeded " << Nextr << " extractions !!!" << Nextr << endl;
+                thisMom = thisMom * GeV; //put the proper unit now for later use
+                thisPhi = -pi + 2 * pi * G4UniformRand();	// isotropic in phi
+                
+                if (cosmicGeo == "sph" || cosmicGeo == "sphere") { //a.c.
+                    G4ThreeVector directionCircle(cos(thisPhi) * sin(thisthe), -cos(thisthe), -sin(thisPhi) * sin(thisthe));
+                    G4ThreeVector norm1Circle(sin(thisPhi),0,cos(thisPhi));
+                    G4ThreeVector norm2Circle=directionCircle.cross(norm1Circle);
+                    
+                    //now, norm1 and norm2 are orthogonal to the momentum direction. Generate a point on a circle of area cosmicRadius*cosmicRadius*pi
+                    G4double circleR,circleTheta;
+                    circleTheta = 2 * pi * G4UniformRand();
+                    circleR = cosmicRadius * cosmicRadius * G4UniformRand();
+                    circleR = sqrt(circleR);
+                    
+                    G4ThreeVector posCircle= circleR * sin(circleTheta) * norm1Circle + circleR * cos(circleTheta) * norm2Circle;
+                    
+                    cosmicVX = posCircle.x();
+                    cosmicVY = posCircle.y();
+                    cosmicVZ = posCircle.z();
+                    
+                }
+                
+            }
+            
+            
+            
+            // now finding the vertex. Assuming twice the radius as starting point
+            // attention:
+            // axis transformation, z <> y,  x <> -x
+            // cause the cosmics come from the sky
+            // double pvx = cosmicVX - 2*cosmicRadius*sin(thisthe)*cos(thisPhi);
+            // double pvy = cosmicVY + 2*cosmicRadius*cos(thisthe);
+            // double pvz = cosmicVZ + 2*cosmicRadius*sin(thisthe)*sin(thisPhi);
+            
+            // MB finding the crossing with the upper surface
+            double Yplane = +h;
+            double tt = (Yplane - cosmicVY) / cos(thisthe);
+            double Xplane = cosmicVX + tt * cos(thisPhi) * sin(thisthe);
+            double Zplane = cosmicVZ + tt * sin(thisPhi) * sin(thisthe);
+            //cout<<Xplane<<" "<<Yplane<<" "<<Zplane <<endl;
+            //cout<<cosmicVX<<" "<<cosmicVY<<" "<<cosmicVZ <<endl;
+            
+            Ntot = Ntot + 1;
+            if (cosmicGeo == "cyl") {
+                if (sqrt(Xplane * Xplane + Zplane * Zplane) < cosmicRadius) Nsup = Nsup + 1;
+            } else if (cosmicGeo == "rec") {
+                if (abs(Xplane) < cosmicRadius && abs(Zplane) < 3 * cosmicRadius) Nsup = Nsup + 1;
+            }
+            
+            double pvx = cosmicVX + cosmicTarget.x() + -0.8 * HallRadius * sin(thisthe) * cos(thisPhi);
+            double pvy = cosmicVY + cosmicTarget.y() + 0.8 * HallRadius * cos(thisthe);
+            double pvz = cosmicVZ + cosmicTarget.z() + 0.8 * HallRadius * sin(thisthe) * sin(thisPhi);
+            
+            // checking the generation vertex in the original position
+            //	double pvx = cosmicTarget.x() + cosmicVX ;
+            //	double pvy = cosmicTarget.y() + cosmicVY ;
+            //		double pvz = cosmicTarget.z() + cosmicVZ ;
+            
+            if (Ntot == 1000 || Ntot == 10000 || Ntot == 100000 || Ntot == 500000 || Ntot == 1000000) {
+                //Normalized to a full rate (all momentum) of = 1 cm-2 min-1
+                double frct = (Ntot * 1.) / (Nsup * 1.);
+                
+                cout << "   " << endl;
+                cout << " COSMIC FLUX CALCULATION  " << endl;
+                cout << "   Ngen: " << Ntot << endl;
+                
+                if (cosmicGeo == "cyl") {
+                    cout << "   Fraction of effective area: " << frct << endl;
+                    cout << "   Effective Area (cyl): " << (pi * cosmicRadius * cosmicRadius / 100.) * frct << endl;
+                    cout << "   Flux on detector (cyl) (Hz) " << (pi * cosmicRadius * cosmicRadius) * frct * 1 / 60. / 100 << endl;
+                } else if (cosmicGeo == "rec") {
+                    cout << "   Fraction of effective area: " << frct << endl;
+                    cout << "   Real Area (rec): " << (2 * 6 * cosmicRadius * cosmicRadius / 100) << endl;
+                    cout << "   Dummy flux:      " << (2 * 6 * cosmicRadius * cosmicRadius / 100) * 1 / 60. << endl;
+                    cout << "   Effective Area (rec): " << (2 * 6 * cosmicRadius * cosmicRadius / 100) * frct << endl;
+                    cout << "   Flux on detector (rec) (Hz) " << (2 * 6 * cosmicRadius * cosmicRadius) * frct * 1 / 60. / 100 << endl;
+                } else if (cosmicGeo == "sph" || cosmicGeo == "sphere") { //a.c.
+                    cout << " Sphere circle area cm2: " << pi * cosmicRadius * cosmicRadius / 100 << endl;
+                    cout << " Using 1.06 muons / cm2 min as flux integral: " << pi * (cosmicRadius * cosmicRadius / 100) * 1.06 / 60 << " Hz " << endl;
+                }
+                
+                cout << " END COSMIC FLUX CALCULATION  " << endl;
+                cout << "   " << endl;
+            }
+            
+            particleGun->SetParticlePosition(G4ThreeVector(pvx, pvy, pvz));
+            
+            if (cosmicNeutrons) {
+                Particle = particleTable->FindParticle("neutron");
+            } else {              //muons
+                // choosing charge of the muons
+                string muonType = "mu+";
+                if (G4UniformRand()<= 0.5) muonType = "mu-";
+                
+                Particle = particleTable->FindParticle(muonType);
+            }
+            double mass = Particle->GetPDGMass();
+            akine = sqrt(thisMom * thisMom + mass * mass) - mass;
+            
+            particleGun->SetParticleDefinition(Particle);
+            // when assigning momentum the direction is reversed
+            G4ThreeVector beam_dir(cos(thisPhi) * sin(thisthe), -cos(thisthe), -sin(thisPhi) * sin(thisthe));
+            
+            if (GEN_VERBOSITY > 3) {
+                cout << hd_msg << " Particle id=" << Particle->GetParticleName() << "  Vertex=" << G4ThreeVector(pvx, pvy, pvz) / cm << "cm,  momentum=" << thisMom / GeV << " GeV, theta=" << thisthe / deg << " degrees,   phi=" << thisPhi / deg << " degrees" << endl;
+                cout << endl;
+            }
+            
+            particleGun->SetParticleEnergy(akine);
+            particleGun->SetParticleMomentumDirection(beam_dir);
+            particleGun->GeneratePrimaryVertex(anEvent);
+            
+            
+        }
 	}
 	// external
 	else
@@ -1202,27 +1327,56 @@ void MPrimaryGeneratorAction::setBeam()
 }
 
 
-MPrimaryGeneratorAction::~MPrimaryGeneratorAction()
-{
-	delete particleGun;
-	gif.close();
-	bgif.close();
+
+MPrimaryGeneratorAction::~MPrimaryGeneratorAction() {
+    
+    delete particleGun;
+    gif.close();
+    bgif.close();
 }
 
-
-double MPrimaryGeneratorAction::cosmicMuBeam(double t, double p)
-{
-	return pow(cosmicA, cosmicB*cos(t))/(cosmicC*p*p);
+double MPrimaryGeneratorAction::cosmicMuBeam(double c, double e) {
+    // cosmic muons spectrum as a function of energy (GeV) and cosine of zenith angle
+    //from 1509.06176: this is dN / dE dOmega, where E is the kinetic energy!!!!
+    
+    double pa[5] = { 0.102573, -0.068287, 0.958633, 0.0407253, 0.817285 };
+    double cst = sqrt((c * c + pa[0] * pa[0] + pa[1] * pow(c, pa[2]) + pa[3] * pow(c, pa[4])) / (1 + pa[0] * pa[0] + pa[1] + pa[3]));
+    return 0.14 * pow((e * (1 + 3.64 / (e * pow(cst, 1.29)))), -2.7) * (1 / (1 + 1.1 * e * c / 115) + 0.054 / (1 + 1.1 * e * c / 850));
 }
 
-double MPrimaryGeneratorAction::cosmicNeutBeam(double t, double p)
-{
-	// cosmic neutrons spectrum as a function of kinetic energy (GeV) and
-	// zenith angle
-	double massNeut = particleTable->FindParticle("neutron")->GetPDGMass()/GeV;
-	double En = sqrt(p*p+massNeut*massNeut)-massNeut;
-	double I0 = pow(En, -2.95);
-	return I0*pow(cos(t), 3.5);
+double MPrimaryGeneratorAction::cosmicNeutBeam(double t, double p) {
+    // cosmic neutrons spectrum as a function of kinetic energy (GeV) and
+    // zenith angle
+    double massNeut = particleTable->FindParticle("neutron")->GetPDGMass() / GeV;
+    double En = (sqrt(p * p + massNeut * massNeut) - massNeut) * 1000.;
+    double I0 = 0;
+    
+    // double I0 = pow(En, (double)-2.95);
+    //double f = I0*pow(cos(t), (double)3.5);
+    //return f;
+    //MB From L.Faure Thesis
+    // Total normalization (neutrons/cm2/s:
+    // 10-9 - 10-6:     2.0e-3
+    // 10-6 - 2 MeV    30.0e-3
+    // 2MeV - 1 GeV     4.6e-3
+    // 1 GeV - 10 GeV   0.078e-3
+    // 10 GeV -100 GeV  0.139 e-6
+    double A = 1.006 * pow(10, -6);
+    double B = 1.011 * pow(10, -3);
+    double C = 1.53023e-7;
+    if (En < 1e-6 && En > 1e-9) {
+        I0 = 2e3;
+    } else if (En < 2 && En > 1e-6) {
+        I0 = 2e-3 / En;
+    } else if (En < 1000 && En > 2) {
+        I0 = A * exp(2.1451 * log(En) - 0.35 * pow(log(En), 2)) + B * exp(-0.667 * log(En) - 0.4106 * pow(log(En), 2));
+    } else if (En < 10000 && En >= 1000) {
+        I0 = C * pow(En / 1000., (double) -2.95);
+    }
+    //cout <<En<<" "<< I0<<endl;
+    double f = I0 * pow(cos(t), (double) 3.5);
+    return f;
+    
 }
 
 

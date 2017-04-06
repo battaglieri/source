@@ -30,10 +30,11 @@ public:
 	// creates the HitProcess
 	static HitProcess *createHitClass() {return new veto_HitProcess;}
 
-	double BirksAttenuation(double,double,int,double);
-	double BirksAttenuation2(double,double,int,double);
-	double* IVresponse(int, double, double, double);
-	double* IVresponseProposal(int, double, double, double, double, double, double);
+    double BirksAttenuation(double,double,int,double);
+    double BirksAttenuation2(double,double,int,double);
+    double* IVresponse(        int, double, double, double, double sx, double sy, double sz);
+    double* IVresponseProposal(int, double, double, double, double sx, double sy, double sz);
+    double* OVresponse(int, double, double, double);
 
 	// - electronicNoise: returns a vector of hits generated / by electronics.
 	vector<MHit*> electronicNoise();

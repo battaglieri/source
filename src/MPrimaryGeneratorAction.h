@@ -55,6 +55,10 @@ public:
 
 	bool isFileOpen() {return !gif.eof();}
 
+    void setNsup(int m_nsup){Nsup=m_nsup;}
+    int  getNsup(){return Nsup;}
+
+    
 private:
 	string input_gen;                 ///< Input Option: internal or external
 	string background_gen;            ///< Input Option: background from file in LUND format
@@ -84,8 +88,11 @@ private:
 	double cminp, cmaxp, cMom;        ///< minimum and maximum cosmic ray momentum
 	G4ThreeVector cosmicTarget;       ///< Location of area of interest for cosmic rays
 	double cosmicRadius;              ///< radius of area of interest for cosmic rays
+    G4ThreeVector HallDim;              ///< Hall diemension threev ector
+    double HallRadius ;              ///< Hall radius
 	string cosmicGeo;                 ///< type of surface for cosmic ray generation (sphere || cylinder)
 	string cosmicParticle;            ///< type of cosmic ray particle (muon || neutron)
+    int muonDecay;                  ///< type of muon decay
 
 	// Generators Input Files
 	ifstream  gif;                    ///< Generator Input File
@@ -125,6 +132,9 @@ private:
 
 	double cosmicMuBeam(double, double);
 	double cosmicNeutBeam(double, double);
+    
+    int Nsup;
+    int Ntot;
 
 
 	void setParticleFromPars(int, int, int, int, double, double, double,  double, double, double, G4Event* anEvent);
