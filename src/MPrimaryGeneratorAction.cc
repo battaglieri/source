@@ -100,7 +100,7 @@ MPrimaryGeneratorAction::MPrimaryGeneratorAction(goptions *opts)
 			cout << hd_msg << " Cosmic Radius :" << cosmicRadius/cm << " cm " << endl;
 			cout << hd_msg << " Cosmic Surface Type: " << cosmicGeo << endl;
 			cout << hd_msg << " Cosmic Particle Type: " << cosmicParticle << endl;
-            if (cosmicParticle == "muon" && muonDecay == 1) cout << hd_msg << " radiative muon decay BR=100%" << endl;
+            if (cosmicParticle == "muon" && muonDecay == 1) cout << hd_msg << " Radiative muon decay BR=100%" << endl;
 		}
 	}
 
@@ -1083,6 +1083,7 @@ void MPrimaryGeneratorAction::setBeam()
 			vector<string> csettings = get_info(cosmics, string(",\""));
 			int len = csettings.size();
 			// parsing information for COSMIC RAYS option
+            if (cosmicParticle == "muon") cout << " Muon decay flag (1 for 100% BR, 0 for correct BR)-- " << muonDecay << endl;
 			if(csettings[0] == "default")
 			{
 				cosmicA = 55.6;
@@ -1102,7 +1103,7 @@ void MPrimaryGeneratorAction::setBeam()
 					cosmicParticle = "muon";
 				}
 			}
-			else
+            else
 			{
 				cosmicA = get_number(csettings[0], 0);
 				cosmicB = get_number(csettings[1], 0);
