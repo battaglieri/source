@@ -50,9 +50,9 @@ map<string, double> crs_HitProcess::integrateDgt(MHit* aHit, int hitn) {
 
 // Parameter for BaBar Crystal
 	double integration_frac = 1.; // integration time SEE DIGI ROUTINE = 1us 67% of the all signal (0.8us->58% 1us->67% 2us->92% 3us->100%)
-	double optical_coupling = 0.56;
+	double optical_coupling = 0.95;
 	double light_yield_crs = 50000 * integration_frac / MeV;
-	double att_length_crs = 600000 * cm; // compatible with NO ATT Lenght as measured for cosmic muons
+	double att_length_crs = 60 * cm; // compatible with NO ATT Lenght as measured for cosmic muons
 	double sensor_surface_crs = pow(0.6 * cm, 2);
 	// ! requires to be matched with the Babar crystal individual geometry (short side ave = (4.1+4.7)/2=4.4)  large side= 4.8+5.4 /2 = 5.1
 	double redout_surface_crs = pow(5.1 * cm, 2);
@@ -63,7 +63,7 @@ map<string, double> crs_HitProcess::integrateDgt(MHit* aHit, int hitn) {
 		sensor_surface_crs = pow(0.3 * cm, 2);
 		redout_surface_crs = pow(4.7 * cm, 2);
 		sensor_qe_crs = 0.22; // consider only 25um sipm
-		optical_coupling = 0.40;
+		optical_coupling = 0.6866;
 	}
 
 	double light_coll_crs = sensor_surface_crs / redout_surface_crs;
@@ -160,11 +160,11 @@ map<string, double> crs_HitProcess::integrateDgt(MHit* aHit, int hitn) {
 //			if (light_coll > 1) light_coll = 1.;     // To make sure you don't miraculously get more energy than you started with
 			if (light_coll_crs > 1) light_coll_crs = 1.;
 
-			etotL_crs = etotL_crs + Edep_B_crs / 2 * exp(-dLeft_crs / att_length_crs);
-			etotR_crs = etotR_crs + Edep_B_crs / 2 * exp(-dRight_crs / att_length_crs);
+			//etotL_crs = etotL_crs + Edep_B_crs / 2 * exp(-dLeft_crs / att_length_crs);
+			//etotR_crs = etotR_crs + Edep_B_crs / 2 * exp(-dRight_crs / att_length_crs);
 
-			//etotL_crs = etotL_crs + Edep_B_crs / 2 * exp(-length_crs / att_length_crs);
-			//etotR_crs = etotR_crs + Edep_B_crs / 2 * exp(-length_crs / att_length_crs);
+			etotL_crs = etotL_crs + Edep_B_crs / 2 * exp(-length_crs / att_length_crs);
+			etotR_crs = etotR_crs + Edep_B_crs / 2 * exp(-length_crs / att_length_crs);
 
 			//  cout << "step: " << s << " etotL, etotR, etotB, etotF: " << etotL << ", " << etotR << ", " << etotB << ", " << etotF << endl;
 
