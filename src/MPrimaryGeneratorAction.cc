@@ -558,6 +558,7 @@ void MPrimaryGeneratorAction::GeneratePrimaries(G4Event* anEvent)
 				for(auto &s : infoStrings) {
 					thisParticleInfo.infos.push_back(get_number(s));
 				}
+                userInfo.clear();
 				userInfo.push_back(thisParticleInfo);
 
 				// necessary geant4 info. Lund specifics:
@@ -641,6 +642,7 @@ void MPrimaryGeneratorAction::GeneratePrimaries(G4Event* anEvent)
 				for(auto &s : infoStrings) {
 					thisParticleInfo.infos.push_back(get_number(s));
 				}
+                userInfo.clear();
 				userInfo.push_back(thisParticleInfo);
 
 				// necessary geant4 info. Lund specifics:
