@@ -746,7 +746,7 @@ map<string, double> veto_HitProcess :: integrateDgt(MHit* aHit, int hitn)
             
             //cout << "sx " << sx << " " << "sy " << sy << " " << "sz " << sz << endl;
             
-            
+
             ADC1=G4Poisson(pe_sipm[0]*etot_g4/2.05) ; // Scaling for more/less energy release)
             ADC2=G4Poisson(pe_sipm[1]*etot_g4/2.05) ; // Scaling for more/less energy release)
             ADC3=G4Poisson(pe_sipm[2]*etot_g4/2.05) ; // Scaling for more/less energy release)
@@ -756,6 +756,28 @@ map<string, double> veto_HitProcess :: integrateDgt(MHit* aHit, int hitn)
             ADC2=(ADC2+G4RandGauss::shoot(0.,13.));
             ADC3=(ADC3+G4RandGauss::shoot(0.,13.));
             ADC4=(ADC4+G4RandGauss::shoot(0.,13.));
+            
+            // Different procedure for BDX-Hodo: using directly the extracted pe from ps_sipm
+            if (chan >= 600 & chan < 700)
+            {
+                //double MPV[14]={0.,   205.3, 155.6, 179.4, 177.4, 198.8, 184.9, 208.5, 207.1, 226.9, 213.1, 227.4, 164.7, 208.1 };
+                double MPV[14]={0.,   205.3, 155.6, 179.4, 177.4, 198.8, 184.9, 208.5, 207.1, 226.9, 213.1, 227.4, 164.7/2., 208.1/2. };
+                double S_Land[14]={0.,  9.7,  10.9,  11.5,   5.0,  10.2,   9.3,   4.5,   7.7,   4.3,   4.6,   5.2,   7.1,  3.8};
+                double S_Gaus[14]={0., 19.3, 16.1,  20.2,  37.0,  21.1,  17.8,  27.5,  19.8,  21.5,  24.6,  15.2,  23.0, 24.5};
+                ADC1=G4Poisson(1.2*MPV[channel]*etot_g4/2.05); //this is not correct for Ch=12 and 13 being thickness=2cm (and not 1cm)
+                //ADC1=(ADC1+G4RandGauss::shoot(0.,(S_Land[channel]+S_Gaus[channel])));
+                ADC1=(ADC1+G4RandGauss::shoot(0.,10.));
+                ADC2=0.;
+                ADC3=0.;
+                ADC4=0.;
+                //cout <<  " ++ HIT BEGIN ++++++" << endl ;
+                //cout <<  " chan: " << channel << endl ;
+                //cout <<  " ADC1: " << ADC1 << endl ;
+                //cout <<  " ++ HIT END ++++++" << channel << endl ;
+   
+
+            }
+            
             if (ADC1<0) ADC1=0.;
             if (ADC2<0) ADC2=0.;
             if (ADC3<0) ADC3=0.;
@@ -1247,17 +1269,18 @@ double* veto_HitProcess::IVresponse(int channel, double xx, double yy,double zz,
         //cout <<  " res[0]: " << response[0] <<  " res[1]: " << response[1]<<  " res[2]: " << response[2]<<  " res[3]: " << response[3]  << endl ;
         
     }
-    else if (channel>=600 & channel<700)// BDX-hodo. So far using old parametrization of D1
+    else if (channel>=600 & channel<700)// BDX-hodo NOT USED
     {// Assuming an overall size of 10cm x 40cm
         double x=-(xx-sx)/10;
         double y=(sz-zz)/10.;
-        double normfactor[4]={1.55, 3.9, 2.92, 2.75};
-        
+        // BDX-Hodo scint parameters
+        //double MPV[14]={0.,  205.3, 155.6, 179.4, 177.4, 198.8, 184.9, 208.5, 207.1, 226.9, 213.1, 227.4, 164.7, 208.1 };
+        //double S_Land[14]={0., 9.7,  10.9,  11.5,   5.0,  10.2,   9.3,   4.5,   7.7,   4.3,   4.6,   5.2,   7.1,  3.8};
+        //double S_Gaus[14]={0.  19.3, 16.1,  20.2,  37.0, 2 1.1,  17.8,  27.5,  19.8,  21.5,  24.6,  15.2,  23.0, 24.5};
         for(unsigned int s=0; s<4; s++) response[s] =0.;
-        response[0]= (-0.000303034)*y*y + (0.00658939)*y + 32.4847; //D1
-        //if (x>10 && x <20 ) response[1]=   (0.00301674)*y*y + (-0.446544)*y + 27.6374; //D4
-        //if (x>20 && x <32.8 ) response[2]= (-0.000275694)*y*y + (0.00124251)*y + 18.8999; //D3
-        //if (x>32.8 && x <42.8 ) response[3]= (-0.00139525)*y*y + (0.104993)*y + 18.1047; //D2
+        double normfactor[4]={1.55, 3.9, 2.92, 2.75};
+        response[0]=0.;
+        
         for(unsigned int s=0; s<4; s++)
             response[s] = response[s] * normfactor[s];
         //cout <<  " ++ HIT BEGIN ++++++" << endl ;
