@@ -966,7 +966,7 @@ map<string, double> veto_HitProcess :: integrateDgt(MHit* aHit, int hitn)
      }// end of paddles
     
     // EEE digitization
-    if(veto_id==1000)
+    if(veto_id==1000 || veto_id==1001 || veto_id==1002)
     {
         double sSizeX=aHit->GetDetector().dimensions[0];
         double sSizeY=aHit->GetDetector().dimensions[1];
@@ -991,10 +991,14 @@ map<string, double> veto_HitProcess :: integrateDgt(MHit* aHit, int hitn)
         double Thit =0.;
         double  sigmaX=8.4; // spread in mm
         double  sigmaZ=8.4; // spread in mm
+        double  sigmaT=0.075; // spread in ns
         double deltaX=0.;
-        double StripMult=0.;
+        double deltaZ=0.;
+        double deltaT=0.;
+        double StripMult=-1.;
+        double speed=11.24; // in ns/cm
         
-        if(Etot>0)
+        if(Etot>0 && times[0]>0)
         {
             for(unsigned int s=0; s<nsteps; s++) vX = vX + Gpos[s].x();
             for(unsigned int s=0; s<nsteps; s++) vXL = vXL + Lpos[s].x();
@@ -1006,42 +1010,48 @@ map<string, double> veto_HitProcess :: integrateDgt(MHit* aHit, int hitn)
             }
             // hit pos in cm with gaussian spread
             deltaX=G4RandGauss::shoot(0.,sigmaX);
+            deltaZ=G4RandGauss::shoot(0.,sigmaZ);
+            deltaT=G4RandGauss::shoot(0.,sigmaT);
             vXL = vXL / nsteps;
             double vXLsmeared = vXL+2*deltaX;
             if(sector==1) // hit in a strip
             {
-            StripMult=1.;
+                StripMult=1.;
                 if (abs(deltaX) > (sSizeX+7+vXL)) StripMult=StripMult+1.;// strip gap = 7mm
                 if (abs(deltaX) > (sSizeX+7-vXL)) StripMult=StripMult+1.;// strip gap = 7mm
                 if (abs(deltaX) > (3*sSizeX+2*7+vXL)) StripMult=StripMult+1.;// strip gap = 7mm
                 if (abs(deltaX) > (3*sSizeX+2*7-vXL)) StripMult=StripMult+1.;// strip gap = 7mm
-            
+                
             }
             if(sector==2) // hit in a gap
             {
-            StripMult=0.;
-                if (abs(deltaX) > (sSizeX+vXL)) StripMult=StripMult+1.;// strip gap = 7mm
-                if (abs(deltaX) > (sSizeX-vXL)) StripMult=StripMult+1.;// strip gap = 7mm
-                if (abs(deltaX) > (sSizeX+25+vXL)) StripMult=StripMult+1.;// strip gap = 7mm
-                if (abs(deltaX) > (sSizeX+25-vXL)) StripMult=StripMult+1.;// strip gap = 7mm
-                if (abs(deltaX) > (3*sSizeX+25+vXL)) StripMult=StripMult+1.;// strip gap = 7mm
-                if (abs(deltaX) > (3*sSizeX+25-vXL)) StripMult=StripMult+1.;// strip gap = 7mm
-
+                StripMult=0.;
+                if (abs(deltaX) > (sSizeX+vXL)) StripMult=StripMult+1.;//
+                if (abs(deltaX) > (sSizeX-vXL)) StripMult=StripMult+1.;//
+                if (abs(deltaX) > (sSizeX+25+vXL)) StripMult=StripMult+1.;// strip = 25mm
+                if (abs(deltaX) > (sSizeX+25-vXL)) StripMult=StripMult+1.;// strip = 25mm
+                if (abs(deltaX) > (3*sSizeX+25+vXL)) StripMult=StripMult+1.;//strip = 25mm
+                if (abs(deltaX) > (3*sSizeX+25-vXL)) StripMult=StripMult+1.;//strip = 25mm
+                
             }
-            cout <<  " xL: " << vXL <<  " XLsm: " << vXLsmeared << " mult: " << StripMult << " check: "<< (sSizeX+3.5)<< endl ;
-
-        vX = (vX /(nsteps)+deltaX)/10.;
-        vY = (vY /(nsteps))/10.;
-        vZ = (vZ /(nsteps)+G4RandGauss::shoot(0.,sigmaZ))/10.;
-        Thit = Thit /(nsteps);
+            // cout <<  " xL: " << vXL <<  " XLsm: " << vXLsmeared << " mult: " << StripMult << " check strip: "<< (sSizeX+7+vXL)<< " check gap: "<< (sSizeX+vXL)<< endl ;
+            
+            vX = (vX /(nsteps)+deltaX)/10.; // in cm
+            vY = (vY /(nsteps))/10.; // in cm
+            vZ = (vZ /(nsteps)+deltaZ)/10.; // in cm
+            Thit = (Thit /(nsteps)+deltaT); // in ns
         }
-
-
-                cout <<  " x: " << vX <<  " y: " << vY << " z: " << vZ <<  " T: " << Thit <<  " Strip: " << channel <<  endl ;
-        //cout <<  " res[0]: " << response[0] <<  " res[1]: " << response[1]<<  " res[2]: " << response[2]<<  " res[3]: " << response[3]  << endl ;
         
+        
+        //   cout <<  " x: " << vX <<  " y: " << vY << " z: " << vZ <<  " T: " << Thit <<  " Strip: " << channel <<  endl ;
+        //cout <<  " res[0]: " << response[0] <<  " res[1]: " << response[1]<<  " res[2]: " << response[2]<<  " res[3]: " << response[3]  << endl ;
+        ADC1=vX*10000.;//in um (ADCX are INT!)
+        ADC2=vY*10000.;//in um
+        ADC3=vZ*10000; //in um
+        ADC4=StripMult;
+        TDC1=Thit*1000; //in ps
     }
-    
+
     
 	dgtz["hitn"]    = hitn;
 	dgtz["sector"]  = sector;
