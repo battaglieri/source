@@ -683,8 +683,8 @@ map<string, double> veto_HitProcess :: integrateDgt(MHit* aHit, int hitn)
     
     
     
-// INNER VETO or CAL_PADs or BDX-Hodo
-   if(veto_id==1 || veto_id==3|| veto_id==6)
+// INNER VETO or CAL_PADs or BDX-Hodo or ASTRO
+   if(veto_id==1 || veto_id==3|| veto_id==6 || veto_id==1100)
     {
         int chan=channel;
         if (veto_id==3)//Cal_pad
@@ -692,6 +692,8 @@ map<string, double> veto_HitProcess :: integrateDgt(MHit* aHit, int hitn)
             else if (channel==2) chan=302;}//bottom
         else if (veto_id==6) chan=600+channel;//bdx-hodo
         
+        else if (veto_id==1100) chan=1100+10*sector+channel;//ASTRO 1101-1104 long, 1111 - 1114 short
+
         double veff=13*cm/ns    ;// TO BE CHECKED
         // scintillator sizes
         double sx=aHit->GetDetector().dimensions[0];
@@ -728,7 +730,7 @@ map<string, double> veto_HitProcess :: integrateDgt(MHit* aHit, int hitn)
                 Z_hit_ave=Z_hit_ave+Lpos[s].z();
                 // average hit time
                 T_hit_ave=T_hit_ave+times[s];
-                
+        
         //cout << "X " << Lpos[s].x() << " " << "Y " << Lpos[s].y() << " " << "Z " << Lpos[s].z() << " "<< "T " <<times[s] << " " << endl;
 
             }
@@ -739,7 +741,8 @@ map<string, double> veto_HitProcess :: integrateDgt(MHit* aHit, int hitn)
             dLeft  =sz-Z_hit_ave;
             dRight =sz+Z_hit_ave;
             timeL= dLeft/veff+T_hit_ave;
-            
+            timeR= dRight/veff+T_hit_ave;
+            //cout << "X " << X_hit_ave << " " << "Y " << Y_hit_ave << " " << "Z " << Z_hit_ave << " "<< "T " <<T_hit_ave << " " << endl;
             
             double *pe_sipm;// response for a mip (2..05 MeV energy released in 1cm thick)
             pe_sipm=IVresponse(chan, X_hit_ave, Y_hit_ave, Z_hit_ave,sx,sy,sz);
@@ -778,6 +781,9 @@ map<string, double> veto_HitProcess :: integrateDgt(MHit* aHit, int hitn)
 
             }
             
+
+            
+            
             if (ADC1<0) ADC1=0.;
             if (ADC2<0) ADC2=0.;
             if (ADC3<0) ADC3=0.;
@@ -791,6 +797,48 @@ map<string, double> veto_HitProcess :: integrateDgt(MHit* aHit, int hitn)
             TDC2=(timeL+G4RandGauss::shoot(0.,sigmaTL))*1000.;//time in ps
             TDC3=(timeL+G4RandGauss::shoot(0.,sigmaTL))*1000.;//time in ps
             TDC4=(timeL+G4RandGauss::shoot(0.,sigmaTL))*1000.;//time in ps
+            
+            
+            // Different procedure for ASTRO: using directly the extracted pe from ps_sipm
+            double pe_ave_astro=0.; double T_ave_astro =0.;
+            att_length = 6000.; // 6m
+            if (chan>=1101 & chan<=1114)
+            {
+                if (chan>=1101 & chan<=1104)// ASTRO long bars
+                {
+                    double y=(sz+Z_hit_ave)/10.;
+                    pe_ave_astro=67*exp(-dRight/att_length);
+                    //out <<  " att: " << pe_ave_astro << endl ;
+                    T_ave_astro =timeR;
+                } // sipm are on the R
+                else if (chan>=1111 & chan<=1114)// ASTRO lshort bars
+                {
+                    double y=(sz-Z_hit_ave)/10.;// sipm are on the F
+                    pe_ave_astro=67*exp(-dLeft/att_length);
+                    T_ave_astro =timeL;
+                }
+                ADC1=G4Poisson(pe_ave_astro*etot_g4/4.1) ; // Scaling for more/less energy release)
+                double sigmaTL=sqrt(pow(0.2*nanosecond,2.)+pow(1.*nanosecond,2.)/(pe_ave_astro+1.));
+                sigmaTL=0.;
+                TDC1=(T_ave_astro+G4RandGauss::shoot(0.,sigmaTL))*1000.;//time in ps
+               
+                // cout <<  " ++ HIT BEGIN ++++++" << endl ;
+                // cout <<  " chan: " << channel << endl ;
+                // cout <<  " x: " << x <<  " y: " << y << " zz: " << zz << endl ;
+                // cout <<  " res[0]: " << response[0] <<  " res[1]: " << response[1]<<  " res[2]: " << response[2]<<  " res[3]: " << response[3]  << endl ;
+                // cout <<  " ++ HIT END ++++++" << channel << endl
+                
+            }
+
+     
+            
+            //cout <<  " ++ HIT BEGIN ++++++" << endl ;
+            //cout <<  " chan: " << channel << endl ;
+            //cout <<  " ADC1: " << ADC1 << endl ;
+           // cout <<  " TDC1: " << TDC1 << endl ;
+            //cout <<  " Channel: " << chan << endl ;
+           // cout <<  " ++ HIT END ++++++" << endl ;
+            
 
 
          //   cout << "channel " << channel << endl;
@@ -989,14 +1037,15 @@ map<string, double> veto_HitProcess :: integrateDgt(MHit* aHit, int hitn)
         double vY =0.;
         double vZ  =0.;
         double Thit =0.;
-        double  sigmaX=8.4; // spread in mm
+        double  sigmaX=8.4; // spread in mm 
         double  sigmaZ=8.4; // spread in mm
         double  sigmaT=0.075; // spread in ns
         double deltaX=0.;
         double deltaZ=0.;
         double deltaT=0.;
         double StripMult=-1.;
-        double speed=11.24; // in ns/cm
+        double speed=15.8; // as in rec program different from 11.24 from NIM A593 (2008) 263
+        double TimeLeft=0, TimeRight=0;
         
         if(Etot>0 && times[0]>0)
         {
@@ -1009,9 +1058,9 @@ map<string, double> veto_HitProcess :: integrateDgt(MHit* aHit, int hitn)
                 //cout <<  "Thits: " <<times[s] <<    " z: " <<Lpos[s].z() << endl ;
             }
             // hit pos in cm with gaussian spread
-            deltaX=G4RandGauss::shoot(0.,sigmaX);
-            deltaZ=G4RandGauss::shoot(0.,sigmaZ);
-            deltaT=G4RandGauss::shoot(0.,sigmaT);
+            //deltaX=G4RandGauss::shoot(0.,sigmaX);//!!!commented time spread for testing
+            //deltaZ=G4RandGauss::shoot(0.,sigmaZ);//!!!commented time spread for testing
+            //deltaT=G4RandGauss::shoot(0.,sigmaT); //!!!commented time spread for testing
             vXL = vXL / nsteps;
             double vXLsmeared = vXL+2*deltaX;
             if(sector==1) // hit in a strip
@@ -1040,19 +1089,35 @@ map<string, double> veto_HitProcess :: integrateDgt(MHit* aHit, int hitn)
             vY = (vY /(nsteps))/10.; // in cm
             vZ = (vZ /(nsteps)+deltaZ)/10.; // in cm
             Thit = (Thit /(nsteps)+deltaT); // in ns
+            TimeLeft=(sSizeZ/10.-vZ)/speed;
+            TimeRight=(sSizeZ/10.+vZ)/speed;
         }
         
+        // mimiking the trigger window
         
-        //   cout <<  " x: " << vX <<  " y: " << vY << " z: " << vZ <<  " T: " << Thit <<  " Strip: " << channel <<  endl ;
+         //cout <<  " x: " << vX <<  " y: " << vY << " z: " << vZ <<  " T: " << Thit <<  " TL: " << TimeLeft <<  " TR: " << TimeRight <<  " Strip: " << channel <<  endl ;
         //cout <<  " res[0]: " << response[0] <<  " res[1]: " << response[1]<<  " res[2]: " << response[2]<<  " res[3]: " << response[3]  << endl ;
-        ADC1=vX*10000.;//in um (ADCX are INT!)
-        ADC2=vY*10000.;//in um
-        ADC3=vZ*10000; //in um
-        ADC4=StripMult;
-        TDC1=Thit*1000; //in ps
+            ADC1=vX*10000.;//in um (ADCX are INT!)
+            ADC2=vY*10000.;//in um
+            ADC3=vZ*10000; //in um
+            ADC4=StripMult;
+            TDC1=Thit*1000; //in ps time from geant
+            // output compatible with rec program
+        ADC1=StripMult*2; // Nhits in the event
+        ADC3=channel;// Strip Left
+        ADC4=channel+24;// Strip Right
+            //int RefTime=89190+7836-761; // derived by tracks hitting the center of the middle chamber 3368
+        int RefTime=7836-761; // derived by tracks hitting the center of the middle chamber 3368
+        TDC1=Thit*1000-RefTime; //in ps time from geant
+        TDC3=(Thit+TimeLeft)*1000-RefTime;// hit time propagated to the L side
+        TDC4=(Thit+TimeRight)*1000-RefTime;// hit time propagated to the R side
+        //cout <<  " x: " << vX <<  " y: " << vY << " z: " << vZ <<  " TDC: " << TDC1  <<  " Nhit: " << ADC1<<  " TL: " << TDC3 <<  " TR: " << TDC4 <<  " StripL: " << ADC3<<  " StripR: " << ADC4 <<  endl ;
+       
+        
+        
     }
 
-    
+ 
 	dgtz["hitn"]    = hitn;
 	dgtz["sector"]  = sector;
 	dgtz["veto"]    = veto_id;
@@ -1300,7 +1365,6 @@ double* veto_HitProcess::IVresponse(int channel, double xx, double yy,double zz,
         //cout <<  " ++ HIT END ++++++" << channel << endl ;
    
     }
-
   //  cout <<  " res[0]: " << response[0] <<  " res[1]: " << response[1]<<  " res[2]: " << response[2]<<  " res[3]: " << response[3]  << endl ;
     // cout <<  " res[0]: " << response[0] << " channel " << channel<<endl;
     return response;

@@ -331,6 +331,7 @@ void MPrimaryGeneratorAction::GeneratePrimaries(G4Event* anEvent)
                 cosmicVX = -cosmicRadius + 2 * cosmicRadius * G4UniformRand();
                 cosmicVY = -cosmicRadius + 2 * cosmicRadius * G4UniformRand();
                 cosmicVZ = -cosmicRadius + 2 * cosmicRadius * G4UniformRand();
+                
             }
             //cout << cosmicVX  << " "<< cosmicVY  << " "<< cosmicVZ  << " " << endl;
             
@@ -360,6 +361,24 @@ void MPrimaryGeneratorAction::GeneratePrimaries(G4Event* anEvent)
                 if (Nextr > 999999) cout << " !!!! LOOPING IN N EXTRACTION !!! exceeded " << Nextr << " extractions !!!" << Nextr << endl;
                 thisPhi = -pi + 2 * pi * G4UniformRand();
                 
+                if (cosmicGeo == "sph" || cosmicGeo == "sphere") { //a.c.
+                    G4ThreeVector directionCircle(cos(thisPhi) * sin(thisthe), -cos(thisthe), -sin(thisPhi) * sin(thisthe));
+                    G4ThreeVector norm1Circle(sin(thisPhi),0,cos(thisPhi));
+                    G4ThreeVector norm2Circle=directionCircle.cross(norm1Circle);
+                    
+                    //now, norm1 and norm2 are orthogonal to the momentum direction. Generate a point on a circle of area cosmicRadius*cosmicRadius*pi
+                    G4double circleR,circleTheta;
+                    circleTheta = 2 * pi * G4UniformRand();
+                    circleR = cosmicRadius * cosmicRadius * G4UniformRand();
+                    circleR = sqrt(circleR);
+                    
+                    G4ThreeVector posCircle= circleR * sin(circleTheta) * norm1Circle + circleR * cos(circleTheta) * norm2Circle;
+                    
+                    cosmicVX = posCircle.x();
+                    cosmicVY = posCircle.y();
+                    cosmicVZ = posCircle.z();
+                    //cout << cosmicVX  << " "<< cosmicVY  << " "<< cosmicVZ  << " " << endl;
+                }
             } else {		      //muons
                 KinEmin = sqrt(cminp / GeV * cminp / GeV + 0.104 * 0.104) - 0.104;
                 KinEmax = sqrt(cmaxp / GeV * cmaxp / GeV + 0.104 * 0.104) - 0.104;
@@ -412,6 +431,8 @@ void MPrimaryGeneratorAction::GeneratePrimaries(G4Event* anEvent)
                     cosmicVX = posCircle.x();
                     cosmicVY = posCircle.y();
                     cosmicVZ = posCircle.z();
+                    //cout << cosmicVX  << " "<< cosmicVY  << " "<< cosmicVZ  << " " << endl;
+
                     
                 }
                 
@@ -447,9 +468,9 @@ void MPrimaryGeneratorAction::GeneratePrimaries(G4Event* anEvent)
             double pvz = cosmicVZ + cosmicTarget.z() + 0.8 * HallRadius * sin(thisthe) * sin(thisPhi);
             
             // checking the generation vertex in the original position
-            //	double pvx = cosmicTarget.x() + cosmicVX ;
-            //	double pvy = cosmicTarget.y() + cosmicVY ;
-            //		double pvz = cosmicTarget.z() + cosmicVZ ;
+            	//double pvx = cosmicTarget.x() + cosmicVX ;
+            	//double pvy = cosmicTarget.y() + cosmicVY ;
+            	//double pvz = cosmicTarget.z() + cosmicVZ ;
             
             if (Ntot == 1000 || Ntot == 10000 || Ntot == 100000 || Ntot == 500000 || Ntot == 1000000) {
                 //Normalized to a full rate (all momentum) of = 1 cm-2 min-1
@@ -495,7 +516,7 @@ void MPrimaryGeneratorAction::GeneratePrimaries(G4Event* anEvent)
             particleGun->SetParticleDefinition(Particle);
             // when assigning momentum the direction is reversed
             G4ThreeVector beam_dir(cos(thisPhi) * sin(thisthe), -cos(thisthe), -sin(thisPhi) * sin(thisthe));
-            
+            //GEN_VERBOSITY = 4;
             if (GEN_VERBOSITY > 3) {
                 cout << hd_msg << " Particle id=" << Particle->GetParticleName() << "  Vertex=" << G4ThreeVector(pvx, pvy, pvz) / cm << "cm,  momentum=" << thisMom / GeV << " GeV, theta=" << thisthe / deg << " degrees,   phi=" << thisPhi / deg << " degrees" << endl;
                 cout << endl;
