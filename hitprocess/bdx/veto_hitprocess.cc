@@ -37,11 +37,19 @@ map<string, double> veto_HitProcess :: integrateDgt(MHit* aHit, int hitn)
     int ADC2 = 0;
     int ADC3 = 0;
     int ADC4 = 0;
+    int ADC5 = 0;
+    int ADC6 = 0;
+    int ADC7 = 0;
+    int ADC8 = 0;
     int TDC1 = 4096;
     int TDC2 = 4096;
     int TDC3 = 4096;
     int TDC4 = 4096;
- 
+    int TDC5 = 4096;
+    int TDC6 = 4096;
+    int TDC7 = 4096;
+    int TDC8 = 4096;
+
     double length;
     // From measurement
     // spe = 0.36pC
@@ -683,8 +691,8 @@ map<string, double> veto_HitProcess :: integrateDgt(MHit* aHit, int hitn)
     
     
     
-// INNER VETO or CAL_PADs or BDX-Hodo or ASTRO
-   if(veto_id==1 || veto_id==3|| veto_id==6 || veto_id==1100)
+// INNER VETO or CAL_PADs or BDX-Hodo or ASTRO or BDX-MINI
+   if(veto_id==1 || veto_id==3|| veto_id==6 || veto_id==1100 || veto_id==7 || veto_id==8)
     {
         int chan=channel;
         if (veto_id==3)//Cal_pad
@@ -693,15 +701,32 @@ map<string, double> veto_HitProcess :: integrateDgt(MHit* aHit, int hitn)
         else if (veto_id==6) chan=600+channel;//bdx-hodo
         
         else if (veto_id==1100) chan=1100+10*sector+channel;//ASTRO 1101-1104 long, 1111 - 1114 short
+     
+        else if (veto_id==7) chan=700+channel;//bdx-mini Outer Veto
+        else if (veto_id==8) chan=800+channel;//bdx-mini Inner Veto
 
         double veff=13*cm/ns    ;// TO BE CHECKED
         // scintillator sizes
         double sx=aHit->GetDetector().dimensions[0];
         double sy=aHit->GetDetector().dimensions[1];
         double sz=aHit->GetDetector().dimensions[2];
+        if (veto_id==7 || veto_id==8)
+        {// for a cylinder I can get the angular size
+            double sDang=aHit->GetDetector().dimensions[4];
+        // BDX-Mini (Cylinder)
+        // IV Id = 800 Zsize [mm] 1/2 lenght of the cilinder Ysize-Xsizer [mm] cilinder thickness angular coverage [rad] sDang
         
+       //  cout << "Detector Id = "<< chan<<" Detector size:  Lenght = " << 2*sz << " " << "Thickness = " << sy-sx << " " << "DAngle = " << sDang/acos(-1.)*180. << " "<< endl;
+        // correcting the geometry for TOP/BOTTOM
+                 if (channel==9 || channel==10)
+            {
+                // IV Id = 800 Zsize [mm] 1/2 thickness of the disk Ysize [mm] 1/2 Radius
+           // cout << "Detecort Id = "<< chan<<" Detector size:  Radius = " << 2*sy << " " << "Thickness = " << 2*sz<<"" ""<< endl;
+            }
+        }
 //        double time_min[4] = {0,0,0,0};
-        
+  //      cout << "Detecort Id = "<< chan<<" Detector size:    Xsize = " << sx << " " << "Ysize = " << sy<< " " << "Zsize = " << sz << " "<< endl;
+
         vector<G4ThreeVector> Lpos = aHit->GetLPos();
         vector<G4double>      Edep = aHit->GetEdep();
         vector<G4double>      Dx   = aHit->GetDx();
@@ -714,6 +739,8 @@ map<string, double> veto_HitProcess :: integrateDgt(MHit* aHit, int hitn)
         double  Y_hit_ave=0.;
         double  Z_hit_ave=0.;
         double  T_hit_ave=0.;
+        double  Phi_hit=0.;
+        double  Phi_hit_ave=0.;
         double dLeft  =-10000.;
         double dRight  =-10000.;
         
@@ -728,29 +755,32 @@ map<string, double> veto_HitProcess :: integrateDgt(MHit* aHit, int hitn)
                 X_hit_ave=X_hit_ave+Lpos[s].x();
                 Y_hit_ave=Y_hit_ave+Lpos[s].y();
                 Z_hit_ave=Z_hit_ave+Lpos[s].z();
+                Phi_hit=360-(360-(atan2(Lpos[s].x(),Lpos[s].y())/acos(-1.)*180.+180));
+                Phi_hit_ave=Phi_hit_ave+Phi_hit;
                 // average hit time
                 T_hit_ave=T_hit_ave+times[s];
         
-        //cout << "X " << Lpos[s].x() << " " << "Y " << Lpos[s].y() << " " << "Z " << Lpos[s].z() << " "<< "T " <<times[s] << " " << endl;
-
+ //       cout << "X " << Lpos[s].x() << " " << "Y " << Lpos[s].y() << " " <<  "Z " << Lpos[s].z() <<" " <<"Phi " << Phi_hit << " "<< "T " <<times[s] << " " << "Edep " <<Edep[s] << " " << endl;
+            
             }
             X_hit_ave=X_hit_ave/nsteps;
             Y_hit_ave=Y_hit_ave/nsteps;
             Z_hit_ave=Z_hit_ave/nsteps;
+            Phi_hit_ave=Phi_hit_ave/nsteps;
             T_hit_ave=T_hit_ave/nsteps;
             dLeft  =sz-Z_hit_ave;
             dRight =sz+Z_hit_ave;
             timeL= dLeft/veff+T_hit_ave;
             timeR= dRight/veff+T_hit_ave;
-            //cout << "X " << X_hit_ave << " " << "Y " << Y_hit_ave << " " << "Z " << Z_hit_ave << " "<< "T " <<T_hit_ave << " " << endl;
-            
+       //     cout << "AVE  X " << X_hit_ave << " " << "Y " << Y_hit_ave << " " << "Z " << Z_hit_ave <<" " << "Phi " << Phi_hit_ave << " " << "dLeft " << dLeft <<" "<< "T " <<T_hit_ave << " Etot " <<etot_g4 << " " << endl;
+       //     cout<< " ---END ----"<< endl;
             double *pe_sipm;// response for a mip (2..05 MeV energy released in 1cm thick)
             pe_sipm=IVresponse(chan, X_hit_ave, Y_hit_ave, Z_hit_ave,sx,sy,sz);
             
             //cout << "sx " << sx << " " << "sy " << sy << " " << "sz " << sz << endl;
             
 
-            ADC1=G4Poisson(pe_sipm[0]*etot_g4/2.05) ; // Scaling for more/less energy release)
+            ADC1=G4Poisson(pe_sipm[0]*etot_g4/2.05) ; // Scaling for more/less ener54     gy release)
             ADC2=G4Poisson(pe_sipm[1]*etot_g4/2.05) ; // Scaling for more/less energy release)
             ADC3=G4Poisson(pe_sipm[2]*etot_g4/2.05) ; // Scaling for more/less energy release)
             ADC4=G4Poisson(pe_sipm[3]*etot_g4/2.05) ; // Scaling for more/less energy release)
@@ -760,11 +790,25 @@ map<string, double> veto_HitProcess :: integrateDgt(MHit* aHit, int hitn)
             ADC3=(ADC3+G4RandGauss::shoot(0.,13.));
             ADC4=(ADC4+G4RandGauss::shoot(0.,13.));
             
+            
+            if (ADC1<0) ADC1=0.;
+            if (ADC2<0) ADC2=0.;
+            if (ADC3<0) ADC3=0.;
+            if (ADC4<0) ADC4=0.;
+            double sigmaTL=sqrt(pow(0.2*nanosecond,2.)+pow(1.*nanosecond,2.)/(peL+1.));
+            
+            sigmaTL=0.;
+            TDC1=(timeL+G4RandGauss::shoot(0.,sigmaTL))*1000.;//time in ps
+            TDC2=(timeL+G4RandGauss::shoot(0.,sigmaTL))*1000.;//time in ps
+            TDC3=(timeL+G4RandGauss::shoot(0.,sigmaTL))*1000.;//time in ps
+            TDC4=(timeL+G4RandGauss::shoot(0.,sigmaTL))*1000.;//time in ps
+
+            
             // Different procedure for BDX-Hodo: using directly the extracted pe from ps_sipm
             if (chan >= 600 & chan < 700)
             {
                 //double MPV[14]={0.,   205.3, 155.6, 179.4, 177.4, 198.8, 184.9, 208.5, 207.1, 226.9, 213.1, 227.4, 164.7, 208.1 };
-                double MPV[14]={0.,   205.3, 155.6, 179.4, 177.4, 198.8, 184.9, 208.5, 207.1, 226.9, 213.1, 227.4, 164.7/2., 208.1/2. };
+                double MPV[14]={0.,   205.3, 155.6, 179.4, 177.4, 198.8, 184.9, 208.5, 207.1, 226.9, 213.1, 227.4, 164.7, 208.1 };
                 double S_Land[14]={0.,  9.7,  10.9,  11.5,   5.0,  10.2,   9.3,   4.5,   7.7,   4.3,   4.6,   5.2,   7.1,  3.8};
                 double S_Gaus[14]={0., 19.3, 16.1,  20.2,  37.0,  21.1,  17.8,  27.5,  19.8,  21.5,  24.6,  15.2,  23.0, 24.5};
                 ADC1=G4Poisson(1.2*MPV[channel]*etot_g4/2.05); //this is not correct for Ch=12 and 13 being thickness=2cm (and not 1cm)
@@ -777,27 +821,157 @@ map<string, double> veto_HitProcess :: integrateDgt(MHit* aHit, int hitn)
                 //cout <<  " chan: " << channel << endl ;
                 //cout <<  " ADC1: " << ADC1 << endl ;
                 //cout <<  " ++ HIT END ++++++" << channel << endl ;
-   
-
             }
             
+            
+            //For BDX-MINI cylinder/octagon vetos (chan==701 || chan ==801) sum up lights in the position of the 8 sipms step by step
+            if (chan >= 700 & chan < 900) //BDX-MINI vetos
+            {
+                if (chan==701 || chan ==801)//BDX-MINI Cylinder/Octagon
+                {// finding time clusters
+                    double BdxMiniSipm[8];
+                    double TCluster[100]; // assuming less than 100 time clusters in the veto
+                    double PhiCluster[100];
+                    double ECluster[100];
+                    unsigned int NHC[100];
+                     for(unsigned int s=0; s<100; s++)
+                    {
+                        TCluster[s]=0.;
+                        ECluster[s]=0.;
+                        PhiCluster[s]=0.;
+                        NHC[s]=0.;
+                    }
+                    unsigned int NCluster=1;
+                    double DeltaTCluster=0.1;
+                    unsigned int jj=0;
+                    TCluster[0]=times[0]; // first hit is the first cluster
+                    PhiCluster[0]=360-(360-(atan2(Lpos[0].x(),Lpos[0].y())/acos(-1.)*180.+180));
+                    ECluster[0]=Edep[0];
+                    NHC[0]=1;
+                    for(unsigned int s=1; s<nsteps; s++) // Iloop over hits
+                    if (Edep[s]>0)
+                    {
+                        if (abs(times[s]-TCluster[jj])<DeltaTCluster)
+                        {
+                            NHC[jj]=NHC[jj]+1;
+                            TCluster[jj]=(TCluster[jj]*NHC[jj]+times[s])/(NHC[jj]+1.);
+                            PhiCluster[jj]=(PhiCluster[jj]*NHC[jj]+360-(360-(atan2(Lpos[s].x(),Lpos[s].y())/acos(-1.)*180.+180)))/(NHC[jj]+1.);
+                            ECluster[jj]=ECluster[jj]+Edep[s];
+                        }
+                        else
+                        {
+                            NCluster=NCluster+1;
+                            jj=NCluster-1;
+                            TCluster[jj]=times[s];
+                            PhiCluster[jj]=360-(360-(atan2(Lpos[s].x(),Lpos[s].y())/acos(-1.)*180.+180));
+                            ECluster[jj]=Edep[s];
+                            NHC[jj]=1;
+                        }
+                        //cout << "ok " << abs(times[s]-TCluster[jj])<< " "<< times[s]<<" "<< TCluster[jj]<<" "<<NHC[jj]<< endl;
+                        //cout << "CLUSTER T " <<times[s] << " " << "NCluster "<< jj<< " " << "TCluster " << TCluster[jj] << endl;
+                        
+                    }
+                    double QSipmBdxMini[8];
+                    double TSipmBdxMini[8];
+                    double att_l_ang=90;
+                    double TrGrv=0.5;
+                    double MeV2pe[8]={30.,20.,20.,20.,20.,20.,20.,20.};
+                    double Qdep;
+                    unsigned int NGrv;
+                    double PhiLoc;
+                    double LightSpeedAng=15.*360/(2*3.1415*9.);// 15.ns/cm * 360 deg /(2pi R_ave_IV_OV=9cm)
+                    double SigmaTSipm=0.;// Time spread on sipm on octagon and cylinder
+                    double QTThre=10.;  //Timing is considered only if the j-mo sipm receive a charge larger than QTThre pe
+                    for(unsigned int s=0; s<8; s++) QSipmBdxMini[s]=0.;
+                    for(unsigned int s=0; s<8; s++) TSipmBdxMini[s]=1000.;// Time initializatiom
+                    for(unsigned int s=0; s<NCluster; s++) // looping on found clusters
+                    {
+                    //    cout << "CLUSTER  N=" <<s<< endl;
+                        for(unsigned int j=0; j<8; j++)//looping on 8 sipm
+                        {
+                            if(chan == 701) PhiLoc=360-abs((j)*45.-PhiCluster[s]-22.5);// outer veto sipm staggered by 22.5deg
+                            if(chan == 801)  PhiLoc=360-abs((j)*45.-PhiCluster[s]);//inner veto
+                            NGrv=int(PhiLoc/45.); // counting grooves
+                            Qdep=MeV2pe[j]*ECluster[s]*(pow(TrGrv,NGrv)*exp(-PhiLoc /att_l_ang)+pow(TrGrv,(7-NGrv))*exp(-abs(360.-PhiLoc) /att_l_ang));
+                            //Qdep=MeV2pe[0]*ECluster[s]*(pow(TrGrv,NGrv)+pow(TrGrv,(7-NGrv)));
+                            QSipmBdxMini[j]=QSipmBdxMini[j]+Qdep;
+                            // Timing
+                            double DeltaPhi=abs(PhiLoc);
+                            if (Qdep>QTThre)// Timing is considered only if the j-mo sipm receive a charge larger than QTThre pe
+                            {
+                             double TOld;
+                             double TNew;
+                             if (DeltaPhi > (360-PhiLoc)) DeltaPhi =abs(360-PhiLoc);
+                             TOld = TSipmBdxMini[j];
+                             TNew = TCluster[s]+abs(DeltaPhi/LightSpeedAng);
+                             if (TNew < TOld && TNew < TSipmBdxMini[j]) TSipmBdxMini[j] = TNew;
+                            }
+                     //       cout <<"    T_Cluster =" <<TCluster[s] <<" DeltaPhi ="<< DeltaPhi <<" T_travel ="<<abs(DeltaPhi/LightSpeedAng) <<" " << j << " sipm =" <<TSipmBdxMini[j] <<endl;
+                    //       cout << "CLUSTER T " <<TCluster[s] << " "<< "PHI_LOC " <<PhiLoc << " " << "NGrv " << NGrv <<" " << "Edep " <<ECluster[s] << " " << "Q"<<j+1<<" " <<Qdep << " " <<"NCluster "<< NCluster<< " " << "NHC " << NHC[s] << endl;
+                        }
+                    }
+                    for(unsigned int s=0; s<8; s++)
+                    {
+                     QSipmBdxMini[s]=(QSipmBdxMini[s]+G4RandGauss::shoot(0.,10.));
+                        if(QSipmBdxMini[s]<0)QSipmBdxMini[s]=0.;
+                    }
+                    //for(unsigned int s=0; s<8; s++) QSipmsBdxMini[s]=(QSipmBdxMini[s]+G4RandGauss::shoot(0.,(QLand[s]+SQGaus[s])));// alternative
+                    
+                    for(unsigned int s=0; s<8; s++) TSipmBdxMini[s]=(TSipmBdxMini[s]+G4RandGauss::shoot(0.,SigmaTSipm))*1000.;//time in ps
 
-            
-            
-            if (ADC1<0) ADC1=0.;
-            if (ADC2<0) ADC2=0.;
-            if (ADC3<0) ADC3=0.;
-            if (ADC4<0) ADC4=0.;
+                   // cout << "ADC  " <<QSipmBdxMini[0] << " " << endl;
+                  //  cout << "TDC  " <<TSipmBdxMini[0] << " " << endl;
+                    ADC1=QSipmBdxMini[0];
+                    ADC2=QSipmBdxMini[1];
+                    ADC3=QSipmBdxMini[2];
+                    ADC4=QSipmBdxMini[3];
+                    ADC5=QSipmBdxMini[4];
+                    ADC6=QSipmBdxMini[5];
+                    ADC7=QSipmBdxMini[6];
+                    ADC8=QSipmBdxMini[7];
 
+                    TDC1=TSipmBdxMini[0];
+                    TDC2=TSipmBdxMini[1];
+                    TDC3=TSipmBdxMini[2];
+                    TDC4=TSipmBdxMini[3];
+                    TDC5=TSipmBdxMini[4];
+                    TDC6=TSipmBdxMini[5];
+                    TDC7=TSipmBdxMini[6];
+                    TDC8=TSipmBdxMini[7];
+
+                    
+                }
+                // BDX-MINI vetos (OuterTop, OuterBottom, InnerTop, InnerBottom) leads
+                double MPV[4]={75., 75., 75., 75.};
+                double S_Land[4]={10., 10., 10., 10.};
+                double S_Gaus[4]={20., 20., 20., 20.};
+                double QSipmLeadsBdxMini=0.;
+                double TSipmLeadsBdxMini=0.;
+                unsigned int j=0;
+                double SigmaTSipmLeads=0.;// Time spread on sipm leads
+
+                if (chan==709 || chan ==710 || chan==809 || chan ==810)
+                {
+                    if (chan==709) j=0;
+                    if (chan==710) j=1;
+                    if (chan==809) j=2;
+                    if (chan==810) j=3;
+
+                    QSipmLeadsBdxMini=G4Poisson(MPV[j]*etot_g4/2.05);
+                    //QSipmLeadsBdxMini=(QSipmLeadsBdxMini+G4RandGauss::shoot(0.,(S_Land[j]+S_Gaus[j])));
+                    QSipmLeadsBdxMini=(QSipmLeadsBdxMini+G4RandGauss::shoot(0.,5.));
+                    double sigmaTL=0.;
+                    TSipmLeadsBdxMini=(T_hit_ave+G4RandGauss::shoot(0.,SigmaTSipmLeads))*1000.;//time in ps
+                    
+               //         cout << "ADC leads " << chan<< " "<< QSipmLeadsBdxMini << " " << "TDC leads " << TSipmLeadsBdxMini <<endl;
+                    ADC1=QSipmLeadsBdxMini;
+                    TDC1=TSipmLeadsBdxMini;
+                }
+                
+            }
+            // End BDX-MINI veto response
             
-            
-            double sigmaTL=sqrt(pow(0.2*nanosecond,2.)+pow(1.*nanosecond,2.)/(peL+1.));
-            sigmaTL=0.;
-            TDC1=(timeL+G4RandGauss::shoot(0.,sigmaTL))*1000.;//time in ps
-            TDC2=(timeL+G4RandGauss::shoot(0.,sigmaTL))*1000.;//time in ps
-            TDC3=(timeL+G4RandGauss::shoot(0.,sigmaTL))*1000.;//time in ps
-            TDC4=(timeL+G4RandGauss::shoot(0.,sigmaTL))*1000.;//time in ps
-            
+  
             
             // Different procedure for ASTRO: using directly the extracted pe from ps_sipm
             double pe_ave_astro=0.; double T_ave_astro =0.;
@@ -810,34 +984,37 @@ map<string, double> veto_HitProcess :: integrateDgt(MHit* aHit, int hitn)
                     pe_ave_astro=67*exp(-dRight/att_length);
                     //out <<  " att: " << pe_ave_astro << endl ;
                     T_ave_astro =timeR;
+                    //cout <<  " dRight: " << dRight <<  " y: " << y << " sz: " << sz << endl ;
                 } // sipm are on the R
                 else if (chan>=1111 & chan<=1114)// ASTRO lshort bars
                 {
                     double y=(sz-Z_hit_ave)/10.;// sipm are on the F
                     pe_ave_astro=67*exp(-dLeft/att_length);
                     T_ave_astro =timeL;
+                    //cout <<  " dLeft: " << dLeft <<  " y: " << y << " sz: " << sz << endl ;
                 }
                 ADC1=G4Poisson(pe_ave_astro*etot_g4/4.1) ; // Scaling for more/less energy release)
                 double sigmaTL=sqrt(pow(0.2*nanosecond,2.)+pow(1.*nanosecond,2.)/(pe_ave_astro+1.));
                 sigmaTL=0.;
                 TDC1=(T_ave_astro+G4RandGauss::shoot(0.,sigmaTL))*1000.;//time in ps
                
-                // cout <<  " ++ HIT BEGIN ++++++" << endl ;
-                // cout <<  " chan: " << channel << endl ;
-                // cout <<  " x: " << x <<  " y: " << y << " zz: " << zz << endl ;
-                // cout <<  " res[0]: " << response[0] <<  " res[1]: " << response[1]<<  " res[2]: " << response[2]<<  " res[3]: " << response[3]  << endl ;
-                // cout <<  " ++ HIT END ++++++" << channel << endl
-                
+                //cout <<  " ++ HIT BEGIN ++++++" << endl ;
+                //cout <<  " chan: " << channel << endl ;
+                //cout <<  " ADC1: " << ADC1 << endl ;
+                //cout <<  " TDC1: " << TDC1 << endl ;
+                //cout <<  " Channel: " << chan << endl ;
+                //cout <<  " ++ HIT END ++++++" << endl ;
+
             }
 
      
             
-            //cout <<  " ++ HIT BEGIN ++++++" << endl ;
-            //cout <<  " chan: " << channel << endl ;
-            //cout <<  " ADC1: " << ADC1 << endl ;
-           // cout <<  " TDC1: " << TDC1 << endl ;
-            //cout <<  " Channel: " << chan << endl ;
-           // cout <<  " ++ HIT END ++++++" << endl ;
+           // cout <<  " ++ HIT BEGIN ++++++" << endl ;
+           // cout <<  " chan: " << channel << endl ;
+           // cout <<  " ADC1: " << ADC1 << endl ;
+           //cout <<  " TDC1: " << TDC1 << endl ;
+           // cout <<  " Channel: " << chan << endl ;
+           //cout <<  " ++ HIT END ++++++" << endl ;
             
 
 
@@ -1014,7 +1191,7 @@ map<string, double> veto_HitProcess :: integrateDgt(MHit* aHit, int hitn)
      }// end of paddles
     
     // EEE digitization
-    if(veto_id==1000 || veto_id==1001 || veto_id==1002)
+    if(veto_id==1000 || veto_id==1001 || veto_id==1002) 
     {
         double sSizeX=aHit->GetDetector().dimensions[0];
         double sSizeY=aHit->GetDetector().dimensions[1];
@@ -1037,14 +1214,14 @@ map<string, double> veto_HitProcess :: integrateDgt(MHit* aHit, int hitn)
         double vY =0.;
         double vZ  =0.;
         double Thit =0.;
-        double  sigmaX=8.4; // spread in mm 
-        double  sigmaZ=8.4; // spread in mm
-        double  sigmaT=0.075; // spread in ns
+        double  sigmaX=8.4; // 8.4 spread in mm USED 9.2mm as from JINST_044P
+        double  sigmaZ=8.4; // 8.4 spread in mm  USED 15mm as from JINST_044P
+        double  sigmaT=0.238; // 0.075 spread in ns 0.075 USED 238ps as from JINST_044P
         double deltaX=0.;
         double deltaZ=0.;
         double deltaT=0.;
         double StripMult=-1.;
-        double speed=15.8; // as in rec program different from 11.24 from NIM A593 (2008) 263
+        double speed=15.8; // 15.8 as in rec program different from 11.24 from NIM A593 (2008) 263
         double TimeLeft=0, TimeRight=0;
         
         if(Etot>0 && times[0]>0)
@@ -1058,9 +1235,9 @@ map<string, double> veto_HitProcess :: integrateDgt(MHit* aHit, int hitn)
                 //cout <<  "Thits: " <<times[s] <<    " z: " <<Lpos[s].z() << endl ;
             }
             // hit pos in cm with gaussian spread
-            //deltaX=G4RandGauss::shoot(0.,sigmaX);//!!!commented time spread for testing
-            //deltaZ=G4RandGauss::shoot(0.,sigmaZ);//!!!commented time spread for testing
-            //deltaT=G4RandGauss::shoot(0.,sigmaT); //!!!commented time spread for testing
+            deltaX=G4RandGauss::shoot(0.,sigmaX);
+            deltaZ=G4RandGauss::shoot(0.,sigmaZ);
+            deltaT=G4RandGauss::shoot(0.,sigmaT);
             vXL = vXL / nsteps;
             double vXLsmeared = vXL+2*deltaX;
             if(sector==1) // hit in a strip
@@ -1072,6 +1249,7 @@ map<string, double> veto_HitProcess :: integrateDgt(MHit* aHit, int hitn)
                 if (abs(deltaX) > (3*sSizeX+2*7-vXL)) StripMult=StripMult+1.;// strip gap = 7mm
                 
             }
+            
             if(sector==2) // hit in a gap
             {
                 StripMult=0.;
@@ -1103,21 +1281,20 @@ map<string, double> veto_HitProcess :: integrateDgt(MHit* aHit, int hitn)
             ADC4=StripMult;
             TDC1=Thit*1000; //in ps time from geant
             // output compatible with rec program
-        ADC1=StripMult*2; // Nhits in the event
-        ADC3=channel;// Strip Left
-        ADC4=channel+24;// Strip Right
+        int outmacro=1; //1 to have output compatibele with macro 0 to have out compatible with reconstruction
+        if(outmacro == 0){
+            ADC1=StripMult*2; // Nhits in the event
+            ADC3=channel;// Strip Left
+            ADC4=channel+24;// Strip Right
             //int RefTime=89190+7836-761; // derived by tracks hitting the center of the middle chamber 3368
-        int RefTime=7836-761; // derived by tracks hitting the center of the middle chamber 3368
-        TDC1=Thit*1000-RefTime; //in ps time from geant
-        TDC3=(Thit+TimeLeft)*1000-RefTime;// hit time propagated to the L side
-        TDC4=(Thit+TimeRight)*1000-RefTime;// hit time propagated to the R side
+            int RefTime=7836-761; // derived by tracks hitting the center of the middle chamber 3368
+            TDC1=Thit*1000-RefTime; //in ps time from geant
+            TDC3=(Thit+TimeLeft)*1000-RefTime;// hit time propagated to the L side
+            TDC4=(Thit+TimeRight)*1000-RefTime;// hit time propagated to the R side
         //cout <<  " x: " << vX <<  " y: " << vY << " z: " << vZ <<  " TDC: " << TDC1  <<  " Nhit: " << ADC1<<  " TL: " << TDC3 <<  " TR: " << TDC4 <<  " StripL: " << ADC3<<  " StripR: " << ADC4 <<  endl ;
-       
-        
-        
+        } //end out compatible with reconstruction
     }
-
- 
+    
 	dgtz["hitn"]    = hitn;
 	dgtz["sector"]  = sector;
 	dgtz["veto"]    = veto_id;
@@ -1126,11 +1303,20 @@ map<string, double> veto_HitProcess :: integrateDgt(MHit* aHit, int hitn)
 	dgtz["adc2"]    = ADC2;//deposited energy in keV
     dgtz["adc3"]    = ADC3;// ignore
     dgtz["adc4"]    = ADC4;// ignore
+    dgtz["adc5"]    = ADC5;// ignore
+    dgtz["adc6"]     = ADC6;// ignore
+    dgtz["adc7"]    = ADC7;// ignore
+    dgtz["adc8"]    = ADC8;// ignore
+
 	dgtz["tdc1"]    = TDC1;// output in ps
 	dgtz["tdc2"]    = TDC2;// ignore
     dgtz["tdc3"]    = TDC3;// ignore
     dgtz["tdc4"]    = TDC4;// ignore
-	
+    dgtz["tdc5"]    = TDC5;// ignore
+    dgtz["tdc6"]    = TDC6;// ignore
+    dgtz["tdc7"]    = TDC7;// ignore
+    dgtz["tdc8"]    = TDC8;// ignore
+
 	return dgtz;
 }
 

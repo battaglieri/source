@@ -96,7 +96,7 @@ MPrimaryGeneratorAction::MPrimaryGeneratorAction(goptions *opts)
 			cout << hd_msg << " b =  :" << cosmicB << endl;
 			cout << hd_msg << " c =  :" << cosmicC << endl;
 			cout << hd_msg << " Momentum Range: [" << cminp/GeV << " - " << cmaxp/GeV << "] GeV" << endl ;
-			cout << hd_msg << " Cosmic Area :" << cosmicTarget << endl;
+			cout << hd_msg << " Cosmic Area :" << cosmicTarget/cm << " cm " << endl; 
 			cout << hd_msg << " Cosmic Radius :" << cosmicRadius/cm << " cm " << endl;
 			cout << hd_msg << " Cosmic Surface Type: " << cosmicGeo << endl;
 			cout << hd_msg << " Cosmic Particle Type: " << cosmicParticle << endl;
@@ -1362,7 +1362,7 @@ MPrimaryGeneratorAction::~MPrimaryGeneratorAction() {
 double MPrimaryGeneratorAction::cosmicMuBeam(double c, double e) {
     // cosmic muons spectrum as a function of energy (GeV) and cosine of zenith angle
     //from 1509.06176: this is dN / dE dOmega, where E is the kinetic energy!!!!
-    
+    e = e + 0.104;  //The distribution is in tot energy asndf not in kine energy MB 10/18
     double pa[5] = { 0.102573, -0.068287, 0.958633, 0.0407253, 0.817285 };
     double cst = sqrt((c * c + pa[0] * pa[0] + pa[1] * pow(c, pa[2]) + pa[3] * pow(c, pa[4])) / (1 + pa[0] * pa[0] + pa[1] + pa[3]));
     return 0.14 * pow((e * (1 + 3.64 / (e * pow(cst, 1.29)))), -2.7) * (1 / (1 + 1.1 * e * c / 115) + 0.054 / (1 + 1.1 * e * c / 850));

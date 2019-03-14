@@ -66,11 +66,35 @@ map<string, double> crs_HitProcess::integrateDgt(MHit* aHit, int hitn) {
 		optical_coupling = 0.6866;
 	}
 
+    
+    // PbWO4 parameters
+    if (sector == 400 || sector == 402 ||sector == 500 ||sector == 502) // 400/402 = Panda Crystals Top/Bottom, 500/502 = FT crystals Top/Bottom
+    {
+        
+        sensor_surface_crs = pow(0.6 * cm, 2);
+        sensor_qe_crs = 0.22; // consider only 25um sipm
+        optical_coupling = 0.9;
+        if (sector == 400 || sector == 402) light_yield_crs = 350 * integration_frac / MeV;//Panda Crystals LY
+        if (sector == 500 || sector == 502) light_yield_crs = 350 * integration_frac / MeV;//FT Crystals LY
+    }
+    double length_crs; //(in mm)
+    double sside_crs;
+    double lside_crs;
+    length_crs = 2*aHit->GetDetector().dimensions[4];
+    sside_crs = 2*aHit->GetDetector().dimensions[0];
+    lside_crs = 2*aHit->GetDetector().dimensions[2];
+    redout_surface_crs =sside_crs*lside_crs* mm * mm;
+    //cout<<"Sector="<<sector << endl;
+    //cout<<"length_crs="<<length_crs << endl;
+    //cout<<"sside_crs="<<sside_crs << endl;
+    //cout<<"lside_crs="<<lside_crs << endl;
+    //cout<<"redout_surface_crs="<<redout_surface_crs<< endl;
+
 	double light_coll_crs = sensor_surface_crs / redout_surface_crs;
+    //cout<<"light_coll_crs="<<light_coll_crs<< endl;
 //    double sensor_pe_crs=20; //20mV*100ns/50Ohm/2 -> 1 pe = 20 pC
 //    double sensor_gain_crs=1;
 	// ! requires to be matched with the Babar crystal individual geometry (32,5 cm)
-	double length_crs;
 	double etotL_crs = 0; //L= Large side redout
 	double etotR_crs = 0; //R= short side redout
 	double timeL_crs = 0;
@@ -104,7 +128,7 @@ map<string, double> crs_HitProcess::integrateDgt(MHit* aHit, int hitn) {
 	vector<G4ThreeVector> Lpos = aHit->GetLPos();
 	vector<G4double> Edep = aHit->GetEdep();
 	vector<G4double> Dx = aHit->GetDx();
-	length_crs = aHit->GetDetector().dimensions[4];
+
 	//cout<<length_crs<< endl;
 
 	// Charge for each step
@@ -131,9 +155,11 @@ map<string, double> crs_HitProcess::integrateDgt(MHit* aHit, int hitn) {
 													  // Use only dRight
 													  // for rotated (old) crystal we keep the same convention:
 													  // readout = small size (use dLeft)
-			double dLeft_crs = length_crs + Lpos[s].z();            //Downstrea
-			double dRight_crs = length_crs - Lpos[s].z();            //Upstream
-
+            
+			double dLeft_crs = length_crs/2 + Lpos[s].z();            //Downstream (SIPM position )
+			double dRight_crs = length_crs/2 - Lpos[s].z();            //Upstream
+            //cout<<"Lpos "<<Lpos[s].z() << endl;
+            //cout<<"dLeft_crs "<<dLeft_crs << endl;
 //            cout << " material " << theseMats[s] << endl;
 
 			// cout << "\n Distances: " << endl;
@@ -241,8 +267,10 @@ map<string, double> crs_HitProcess::integrateDgt(MHit* aHit, int hitn) {
 
 		// Crystal readout
 		//double test=WaveForm(peR_crs,TDCR_crs);
-		double* test;
-		double tim;
+        double* test;
+        double tim;
+        double* test_pbwo;
+        double tim_pbwo;
 		double peR_int_crs;
 		double peR_crs = 0.;
 		double peL_int_crs;
@@ -257,8 +285,16 @@ map<string, double> crs_HitProcess::integrateDgt(MHit* aHit, int hitn) {
 		peR_crs = G4Poisson(etotR_crs * light_yield_crs * sensor_qe_crs * optical_coupling * light_coll_crs);
 		//
 		// integrating over the integration time (each sample 4.ns, see digi routine)
-
-		test = WaveForm(peR_crs, &tim);
+        //cout <<"tre "<< light_yield_crs<<endl;
+        //cout << peR_crs <<"  "<<light_yield_crs<< "  "<< sector<<endl;
+        if (sector == 400 || sector == 402 ||sector == 500 ||sector == 502) // 400/402 = Panda Crystals Top/Bottom, 500/502 = FT crystals Top/Bottom
+        {
+            test_pbwo = WaveFormPbwo(peR_crs, &tim_pbwo);
+            test=test_pbwo;
+            tim=tim_pbwo;
+        }
+        else test = WaveForm(peR_crs, &tim);
+        
 		peR_int_crs = 0.;
 		for (unsigned int s = 0; s < Nsamp_int; s++)
 			peR_int_crs = peR_int_crs + test[s];
@@ -280,8 +316,16 @@ map<string, double> crs_HitProcess::integrateDgt(MHit* aHit, int hitn) {
 		//peL_crs = etotL_crs * light_yield_crs * sensor_qe_crs * optical_coupling * light_coll_crs;
 		peL_crs = G4Poisson(etotL_crs * light_yield_crs * sensor_qe_crs * optical_coupling * light_coll_crs);
 		// integrating over the integration time (each sample 4.ns, see digi routine)
-		test = WaveForm(peL_crs, &tim);
 
+        if (sector == 400 || sector == 402 ||sector == 500 ||sector == 502) // 400/402 = Panda Crystals Top/Bottom, 500/502 = FT crystals Top/Bottom
+        {
+            test_pbwo = WaveFormPbwo(peL_crs, &tim_pbwo);
+            test=test_pbwo;
+            tim=tim_pbwo;
+        }
+        else test = WaveForm(peL_crs, &tim);
+        
+        
 		peL_int_crs = 0.;
 		for (unsigned int s = 0; s < Nsamp_int; s++)
 			peL_int_crs = peL_int_crs + test[s];
@@ -294,7 +338,8 @@ map<string, double> crs_HitProcess::integrateDgt(MHit* aHit, int hitn) {
 		//   Old crystal readout by the 50um on thesmall size readout (Left side). No 100 um sipm implemented
 		// Parameters assigned at tghe beginning (qe, size, optical coupling)
 		// Reassigniong TDCR and ADCR for uniform readout
-		if (sector == 100 && xch == 0 && ych == 0) {
+		if ((sector == 100 && xch == 0 && ych == 0) || (sector == 400 || sector == 402 ||sector == 500 ||sector == 502))
+        {
 			TDCR_crs = TDCL_crs;
 			ADCR_crs = ADCL_crs;
 		}
@@ -313,9 +358,9 @@ map<string, double> crs_HitProcess::integrateDgt(MHit* aHit, int hitn) {
 	dgtz["sector"] = sector;
 	dgtz["xch"] = xch;
 	dgtz["ych"] = ych;
-	dgtz["adcl"] = ADCL_crs;	  // not used
+	dgtz["adcl"] = ADCL_crs;	  //
 	dgtz["adcr"] = ADCR_crs;	  //SIPM 25um -> large size for matrix, small size for single
-	dgtz["tdcl"] = TDCL_crs;	  // not used
+	dgtz["tdcl"] = TDCL_crs;	  //
 	dgtz["tdcr"] = TDCR_crs;	  // as per ADCR_crs
 	dgtz["adcb"] = 0;
 	dgtz["adcf"] = 0;
@@ -472,6 +517,117 @@ double* crs_HitProcess::WaveForm(double npe, double* time) {
 	return WFsample;
 
 }
+
+double* crs_HitProcess::WaveFormPbwo(double npe, double* time_pbwo) {
+    double c = exp(-2.);
+    //    double Time;
+    double t; // time in usec
+    double WF;
+    double y;
+    double rr;
+    int it;
+    int Nch_digi = 800; //Number of cjannel for the digitizer
+    static double WFsample[1000]; //Needs to be >  Nch_digi+size of the response to the single pe
+    double smp_t = 4. / 1000.; // Assuming fADC sampling at 250 MHz 1sample every 4ns
+    
+    // double p[6] = {0.14,-3.5,2.5,-2.,0.5,-1.2};
+    double p[6] = { 0., 0.00680, 0.64, 0.0334, 0.36, 0. }; // PbWO: fast component(in us), % fast, slow comp(in us), % slow
+    // double p1[6] = {0.33,-0.04,3.45,-0.05,2.5,-0.045};
+    
+    double tau = 15.; // ampli response time constant (in ns)
+    double t0 = 0.01; // t0 starting time (in ns)
+    double area = (tau / c / 2.);
+    double A = 1. / area; // amplitude at mnax (55.41 to have it normalized to integral=1, otherwise the max is at 1)
+    //    double threshold=10.*1./area/smp_t/1000.; //time threshold in pe - 1/55.41/smp_t*1000. is the funct max -
+    
+    double t_spread = 1. * 0.000; // pream time spread in us
+    double A_spread = 1. * 0.05 * A; // pream amp spread (in fraction of 1pe amplitude = A)
+    double func = 0.;
+    // Building the waveform
+    for (unsigned int s = 0; s < 1000; s++) {
+        WFsample[s] = 0;
+    }
+    // Building the response to a single pe (preamps response)
+    double AmpWF[80];
+    for (unsigned int s = 0; s < 80; s++) {
+        t = 1000. * s * smp_t;
+        // parametrization of preamp out time is in ns (rise ~10ns decay~80ns) sampled in 160ns or 40 samples
+        //func=1./411.5*((1-exp(p1[0]+p1[1]*t))*exp(p1[2]+p1[3]*t)+exp(p1[4]+p1[5]*t)));
+        func = (t - t0) * (t - t0) * exp(-(t - t0) / tau) * A / (4 * tau * tau * c) * 0.5 * (abs(t - t0) / (t - t0) + 1);
+        // spreading amplitude by apli noise
+        AmpWF[s] = smp_t * 1000. * func;
+    }
+    
+    // fraction of pe in Nch_digi
+    double frac = 1 - ((p[2] * exp(-smp_t * Nch_digi / p[1]) + p[4] * exp(-smp_t * Nch_digi / p[3])));
+    int Npe = frac * npe;
+    //    cout << "Npe  " << Npe<<"  "<<npe << endl;
+    
+    //Npe=1.;
+    //Npe=Npe/100.;
+    for (unsigned int s = 1; s <= Npe; s++) {
+        y = 1.;
+        WF = 0.;
+        while (y > WF) {
+            rr = (rand() % 1000000 + 1) / 1000000.; // rnd number between 0-1
+            t = Nch_digi * smp_t * rr; // extracting over 5000 samples range (5000x4ns=20us)
+            //WF= 1./5.15*((1-exp(p[0]+p[1]*t))*exp(p[2]+p[3]*t)+exp(p[4]+p[5]*t));
+            WF = (p[2] / p[1] * exp(-t / p[1]) + p[4] / p[3] * exp(-t / p[3])) / (p[2] / p[1] + p[4] / p[3]);
+            rr = (rand() % 10000000 + 1) / 10000000.; // rnd number between 0-1
+            y = rr;
+            //  cout << "WF " << WF   << " rnd " << y  << endl;
+        }
+        // spreading time and amplitude of the ampli signal
+        //        it=t/smp_t;
+        //        cout << "t " << t << "it " << it        << endl;
+        
+        t = G4RandGauss::shoot(t,t_spread);
+        if (t < 0.) t = 0.;
+        it = t / smp_t;
+        //      cout << "t " << t << "it " << it        << endl;
+        for (unsigned int s = 0; s < 80; s++) {
+            t = 1000. * s * smp_t;
+            func = AmpWF[s];
+            func = G4RandGauss::shoot(func,A_spread);
+            if ((s + it) < Nch_digi) WFsample[s + it] = WFsample[s + it] + func;
+        }
+    }
+    
+    //for(unsigned int s=0; s<200; s++) cout << s  << " " <<  WFsample[s] << endl ;
+    
+    // mimicking a CF discriminatorm at 1/3 of the max signal
+    *time_pbwo = 0.;
+    double time_max = -100;
+    int s = 0;
+    int s_time_max = 0;
+    while (time_max < WFsample[s]) {
+        time_max = 1 / 2. * (WFsample[s + 1] + WFsample[s]);
+        s_time_max = s;
+        *time_pbwo = 1000. * smp_t * s_time_max / 3.;
+        s++;
+    }
+    // cout<<s_time_max<<"  "<< time_max<< "  "<<*time <<endl;
+    
+    /* // mimicking a FixedT discriminatorm
+     for(unsigned int s=0; s<1000; s++)
+     {
+     //cout << s  << " " <<  WFsample[s] << endl ;
+     //look for the max
+     
+     if(WFsample[s]>threshold)
+     {*time=1000.*s*smp_t; //time in ns
+     break;
+     }
+     }
+     */
+    
+    // get timing from digitized WF
+    // cout <<  "routine " <<  WFsample[50] << endl ;
+    //cout << "Time  " << threshold<< "sample  "<<s<< "time  "<< *time << endl;
+    return WFsample;
+    
+}
+
 
 
 // - electronicNoise: returns a vector of hits generated / by electronics.
