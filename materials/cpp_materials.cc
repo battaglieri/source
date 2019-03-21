@@ -52,6 +52,11 @@ map<string, G4Material*> cpp_materials::initMaterials(runConditions rc, goptions
 	G4Material *Kryptonite = new G4Material("Kryptonite", density= 0.00000001*mg/cm3, nel=1);
 	Kryptonite->AddMaterial(matman->FindOrBuildMaterial("G4_Ar"), 100.*perCent);
 
+	/*This material kills primary tracks that are generated into this*/
+	G4Material *KryptoniteLight = new G4Material("KryptoniteLight", density = 1.29 * mg / cm3, nel = 2);
+	KryptoniteLight->AddMaterial(matman->FindOrBuildMaterial("G4_N"), 70. * perCent);
+	KryptoniteLight->AddMaterial(matman->FindOrBuildMaterial("G4_O"), 30. * perCent);
+
 	// aluminum honeycomb core  (it is actually made of alloy Alu-Alloy 3003 (AlMnCu) - still used by HPS ECAL
 	G4Material *AlHoneycomb = new G4Material("AlHoneycomb", z=13, a=  26.982*g/mole, density =  0.13*g/cm3);
 

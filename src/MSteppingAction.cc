@@ -37,7 +37,11 @@ void MSteppingAction::UserSteppingAction(const G4Step* aStep)
 		track->SetTrackStatus(fStopAndKill);
 	}
 
-	
+	// Anything passing material "KryptoniteLight" and is a primary and is in the first step is killed
+	if ((track->GetMaterial()->GetName() == "KryptoniteLight") && (track->GetParentID() == 0) && (aStep->GetPreStepPoint()->GetGlobalTime() == 0)) {
+		track->SetTrackStatus(fKillTrackAndSecondaries);
+	}
+
 	if(track->GetDefinition() == G4OpticalPhoton::OpticalPhotonDefinition())
 	{
         // killing photon if above 100 steps
