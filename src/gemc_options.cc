@@ -597,6 +597,13 @@ void goptions::setGoptions()
 
 
 	// voltage versus time resolution, in ns
+    
+    optMap["FILTER_HITS"].arg = 0;
+    optMap["FILTER_HITS"].help = "If set to 1, do not write output if there are no hits in the detectors";
+    optMap["FILTER_HITS"].name = "If set to 1, do not write output if there are no hits in the detectors";
+    optMap["FILTER_HITS"].type = 0;
+    optMap["FILTER_HITS"].ctgr = "output";
+
 	optMap["FASTMCMODE"].arg   = 0;   // 1: production cut set to 5m. 2: turn off all physics but transportation
 	optMap["FASTMCMODE"].help  = "Activate FASTMC Mode. Possible values: \n\n";
 	optMap["FASTMCMODE"].help += "       0: No FASTMC (default).\n";

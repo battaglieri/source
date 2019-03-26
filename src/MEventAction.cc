@@ -89,6 +89,7 @@ MEventAction::MEventAction(goptions opts, map<string, double> gpars)
 	SAVE_ALL_MOTHERS = (int) gemcOpt.optMap["SAVE_ALL_MOTHERS"].arg ;
 	gPars            = gpars;
 	MAXP             = (int) gemcOpt.optMap["NGENP"].arg;
+    FILTER_HITS      = (int) gemcOpt.optMap["FILTER_HITS"].arg;
 	rw               = runWeights(opts);
 	
 	WRITE_ALLRAW     = replaceCharInStringWithChars(gemcOpt.optMap["ALLRAWS"].args, ",", "  ");
@@ -155,6 +156,20 @@ void MEventAction::EndOfEventAction(const G4Event* evt)
 	MHitCollection* MHC;
 	int nhits;
 	
+    
+ 
+    // if FILTER_HITS is set, checking if there are any hits
+    if(FILTER_HITS) {
+        int anyHit = 0;
+        for(map<string, sensitiveDetector*>::iterator it = SeDe_Map.begin(); it!= SeDe_Map.end(); it++) {
+            MHC = it->second->GetMHitCollection();
+            if (MHC) anyHit += MHC->GetSize();
+        }
+        
+        // stop here if there are no hits and FILTER_HITS is set
+        if(anyHit==0) return;
+    }
+    
 	if(evtN%Modulo == 0 )
 		cout << hd_msg << " Starting Event Action Routine " << evtN << "  Run Number: " << rw.runNo << endl;
 	

@@ -131,7 +131,8 @@ public:
 	string catch_v;         ///< Print Log for volume
 	int   SAVE_ALL_MOTHERS; ///< >= 1: Loops over the stored trajectories to store mother vertex and pid in the output. >=2: Also saves all particles that produced a hit onto LUND format
 	int   MAXP;             ///< Max number of generated particles to save on output stream
-	string WRITE_ALLRAW;    ///< List of detectors for which geant4 all raw info need to be saved
+	    int   FILTER_HITS;      ///< If set to 1, do not write any output unless there is a hit somewhere
+    string WRITE_ALLRAW;    ///< List of detectors for which geant4 all raw info need to be saved
 	string WRITE_INTRAW;    ///< List of detectors for which geant4 raw integrated info need to be saved
 	string WRITE_INTDGT;    ///< List of detectors for which digitized integrated info need to be NOT saved
 	string SIGNALVT;        ///< List of detectors for which voltage versus time need to be saved
