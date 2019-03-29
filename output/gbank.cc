@@ -54,7 +54,12 @@ map<string, gBank> read_banks(goptions gemcOpt, map<string, string> allSystems)
 	abank.load_variable("var8",      13, "Nd", "User defined. In LUND this was: Energy loss");
 	abank.orderNames();
 	banks["header"] = abank;
-	
+
+	// event header
+	abank = gBank(USER_HEADER_BANK_TAG, "userHeader", "User Header Bank");
+	abank.orderNames();
+	banks["userHeader"] = abank;
+
 	// generated particle infos
 	abank =  gBank(GENERATED_PARTICLES_BANK_TAG, "generated", "Generated Particles");
 	abank.load_variable("pid",           1,  "Ni", "Particle ID");
