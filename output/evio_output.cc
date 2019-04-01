@@ -72,6 +72,31 @@ void evio_output :: writeHeader(outputContainer* output, map<string, double> dat
 	*event << headerBank;
 }
 
+
+// write user infos header
+void evio_output :: writeUserInfoseHeader(outputContainer* output, map<string, double> data)
+{
+	evioDOMNodeP userHeaderBank = evioDOMNode::createEvioDOMNode(USER_HEADER_BANK_TAG, 0);
+	// bank starts from 2 cause timestamp already there
+	int banknum = 1;
+	for(map<string, double> :: iterator it = data.begin(); it != data.end(); it++) {
+
+
+		*userHeaderBank << addVariable(USER_HEADER_BANK_TAG, banknum, "d", it->second);
+		banknum++;
+	}
+
+	unsigned minNumberOfVarsToWrite = 10;
+	for(unsigned i=data.size(); i<minNumberOfVarsToWrite; i++) {
+		*userHeaderBank << addVariable(USER_HEADER_BANK_TAG, banknum, "d", 0.0);
+		banknum++;
+
+	}
+
+	*event << userHeaderBank;
+}
+
+
 void evio_output :: writeRFSignal(outputContainer* output, FrequencySyncSignal rfsignals, gBank bank)
 {
 	// creating and inserting generated particles bank  >> TAG=10 NUM=0 <<

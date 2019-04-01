@@ -233,6 +233,8 @@ public:
 
 	// write event header
 	virtual void writeHeader(outputContainer*, map<string, double>, gBank)  = 0;
+	// write user infos header
+	virtual void writeUserInfoseHeader(outputContainer*, map<string, double>) = 0;
 
 	// write RF Signal
 	virtual void writeRFSignal(outputContainer*, FrequencySyncSignal, gBank)  = 0;
