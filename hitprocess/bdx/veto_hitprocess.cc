@@ -903,8 +903,10 @@ map<string, double> veto_HitProcess :: integrateDgt(MHit* aHit, int hitn)
                     double QSipmBdxMini[8];
                     double TSipmBdxMini[8];
                     double att_l_ang=90;
-                    double TrGrv=0.5;
-                    double MeV2pe[8]={20.,20.,20.,20.,20.,20.,20.,20.};
+                    double TrGrv=0.6;
+                    double MeV2pe[8];
+                    double MeV2peIV[8]={26.,26.,26.,26.,26.,26.,26.,26.};//Oct
+                    double MeV2peOV[8]={17.,17.,17.,17.,17.,17.,17.,17.};//Cyl
                     double Qdep;
                     unsigned int NGrv;
                     double PhiLoc;
@@ -922,8 +924,13 @@ map<string, double> veto_HitProcess :: integrateDgt(MHit* aHit, int hitn)
                             {
                                 PhiLoc=360-abs((j)*45.-PhiCluster[s]-22.5);// outer veto sipm staggered by 22.5deg
                                 if(PhiLoc<0) PhiLoc=360+PhiLoc;
+                                for(unsigned int s=0; s<8; s++) MeV2pe[s]=MeV2peOV[s];
                             }
-                            if(chan == 801)  PhiLoc=360-abs((j)*45.-PhiCluster[s]);//inner veto
+                            if(chan == 801)
+                            {
+                                PhiLoc=360-abs((j)*45.-PhiCluster[s]);//inner veto
+                                for(unsigned int s=0; s<8; s++) MeV2pe[s]=MeV2peIV[s];
+                            }
                             NGrv=int(PhiLoc/45.); // counting grooves
                             Qdep=MeV2pe[j]*ECluster[s]*(pow(TrGrv,NGrv)*exp(-PhiLoc /att_l_ang)+pow(TrGrv,(7-NGrv))*exp(-abs(360.-PhiLoc) /att_l_ang));
                             //Qdep=MeV2pe[0]*ECluster[s]*(pow(TrGrv,NGrv)+pow(TrGrv,(7-NGrv)));
