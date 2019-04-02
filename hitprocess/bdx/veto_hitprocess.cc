@@ -827,13 +827,19 @@ map<string, double> veto_HitProcess :: integrateDgt(MHit* aHit, int hitn)
             //For BDX-MINI cylinder/octagon vetos (chan==701 || chan ==801) sum up lights in the position of the 8 sipms step by step
             if (chan >= 700 & chan < 900) //BDX-MINI vetos
             {
+              //  cout <<" "<< endl;
+
                 if (chan==701 || chan ==801)//BDX-MINI Cylinder/Octagon
                 {// finding time clusters
                     double BdxMiniSipm[8];
                     double TCluster[100]; // assuming less than 100 time clusters in the veto
                     double PhiCluster[100];
+                    double PhiHitCluster=0.;
+                    double ETotCluster=0.;
                     double ECluster[100];
                     unsigned int NHC[100];
+                    double XCA;
+                    double YCA;
                      for(unsigned int s=0; s<100; s++)
                     {
                         TCluster[s]=0.;
@@ -848,6 +854,12 @@ map<string, double> veto_HitProcess :: integrateDgt(MHit* aHit, int hitn)
                     PhiCluster[0]=360-(360-(atan2(Lpos[0].x(),Lpos[0].y())/acos(-1.)*180.+180));
                     ECluster[0]=Edep[0];
                     NHC[0]=1;
+                    XCA=0.;
+                    YCA=0.;
+                    ETotCluster=0.;
+                    for(unsigned int s=0; s<nsteps; s++)
+                    {if (Edep[s]>0 && abs(times[s]-TCluster[jj])<DeltaTCluster) ETotCluster = ETotCluster+Edep[s];}
+                    
                     for(unsigned int s=1; s<nsteps; s++) // Iloop over hits
                     if (Edep[s]>0)
                     {
@@ -855,8 +867,13 @@ map<string, double> veto_HitProcess :: integrateDgt(MHit* aHit, int hitn)
                         {
                             NHC[jj]=NHC[jj]+1;
                             TCluster[jj]=(TCluster[jj]*NHC[jj]+times[s])/(NHC[jj]+1.);
-                            PhiCluster[jj]=(PhiCluster[jj]*NHC[jj]+360-(360-(atan2(Lpos[s].x(),Lpos[s].y())/acos(-1.)*180.+180)))/(NHC[jj]+1.);
+                            //PhiHitCluster=atan2(Lpos[s].x(),Lpos[s].y())/acos(-1.)*180.+180; wrong
+                            //PhiCluster[jj]=(PhiCluster[jj]*NHC[jj]+(Edep[s]/ETotCluster)*(360-(360-(atan2(Lpos[s].x(),Lpos[s].y())/acos(-1.)*180.+180))))/(NHC[jj]+1.); wrong
                             ECluster[jj]=ECluster[jj]+Edep[s];
+                            XCA=XCA+Lpos[s].x()*Edep[s]/ETotCluster;
+                            YCA=YCA+Lpos[s].y()*Edep[s]/ETotCluster;
+                            PhiHitCluster=(atan2(Lpos[s].x(),Lpos[s].y())/acos(-1.)*180.+180);
+                            PhiCluster[jj]=(atan2(XCA,YCA)/acos(-1.)*180.+180);
                         }
                         else
                         {
@@ -864,18 +881,30 @@ map<string, double> veto_HitProcess :: integrateDgt(MHit* aHit, int hitn)
                             jj=NCluster-1;
                             TCluster[jj]=times[s];
                             PhiCluster[jj]=360-(360-(atan2(Lpos[s].x(),Lpos[s].y())/acos(-1.)*180.+180));
+                            PhiHitCluster=(atan2(Lpos[s].x(),Lpos[s].y())/acos(-1.)*180.+180);
                             ECluster[jj]=Edep[s];
                             NHC[jj]=1;
+                            XCA=0.;
+                            YCA=0.;
+                            ETotCluster=0.;
+                            for(unsigned int s=1; s<nsteps; s++)
+                            {if (Edep[s]>0 && abs(times[s]-TCluster[jj])<DeltaTCluster) ETotCluster = ETotCluster+Edep[s];}
+
                         }
+                        
                         //cout << "ok " << abs(times[s]-TCluster[jj])<< " "<< times[s]<<" "<< TCluster[jj]<<" "<<NHC[jj]<< endl;
                         //cout << "CLUSTER T " <<times[s] << " " << "NCluster "<< jj<< " " << "TCluster " << TCluster[jj] << endl;
-                        
+
+
+                       // cout <<"THit "<<times[s]<< " Edep "<<Edep[s]<< " PhiHit "<< PhiHitCluster << "  Phi cluster " << PhiCluster[jj]
+                       // << " TCluster " << TCluster[jj] <<  " ETotCluster " << ETotCluster <<" ETot " << ECluster[jj] <<endl;
                     }
+                  //  cout <<" "<< endl;
                     double QSipmBdxMini[8];
                     double TSipmBdxMini[8];
                     double att_l_ang=90;
                     double TrGrv=0.5;
-                    double MeV2pe[8]={30.,20.,20.,20.,20.,20.,20.,20.};
+                    double MeV2pe[8]={20.,20.,20.,20.,20.,20.,20.,20.};
                     double Qdep;
                     unsigned int NGrv;
                     double PhiLoc;
@@ -886,10 +915,14 @@ map<string, double> veto_HitProcess :: integrateDgt(MHit* aHit, int hitn)
                     for(unsigned int s=0; s<8; s++) TSipmBdxMini[s]=1000.;// Time initializatiom
                     for(unsigned int s=0; s<NCluster; s++) // looping on found clusters
                     {
-                    //    cout << "CLUSTER  N=" <<s<< endl;
+                      //  cout << "CLUSTER  N=" <<s<< endl;
                         for(unsigned int j=0; j<8; j++)//looping on 8 sipm
                         {
-                            if(chan == 701) PhiLoc=360-abs((j)*45.-PhiCluster[s]-22.5);// outer veto sipm staggered by 22.5deg
+                            if(chan == 701)
+                            {
+                                PhiLoc=360-abs((j)*45.-PhiCluster[s]-22.5);// outer veto sipm staggered by 22.5deg
+                                if(PhiLoc<0) PhiLoc=360+PhiLoc;
+                            }
                             if(chan == 801)  PhiLoc=360-abs((j)*45.-PhiCluster[s]);//inner veto
                             NGrv=int(PhiLoc/45.); // counting grooves
                             Qdep=MeV2pe[j]*ECluster[s]*(pow(TrGrv,NGrv)*exp(-PhiLoc /att_l_ang)+pow(TrGrv,(7-NGrv))*exp(-abs(360.-PhiLoc) /att_l_ang));
@@ -906,8 +939,8 @@ map<string, double> veto_HitProcess :: integrateDgt(MHit* aHit, int hitn)
                              TNew = TCluster[s]+abs(DeltaPhi/LightSpeedAng);
                              if (TNew < TOld && TNew < TSipmBdxMini[j]) TSipmBdxMini[j] = TNew;
                             }
-                     //       cout <<"    T_Cluster =" <<TCluster[s] <<" DeltaPhi ="<< DeltaPhi <<" T_travel ="<<abs(DeltaPhi/LightSpeedAng) <<" " << j << " sipm =" <<TSipmBdxMini[j] <<endl;
-                    //       cout << "CLUSTER T " <<TCluster[s] << " "<< "PHI_LOC " <<PhiLoc << " " << "NGrv " << NGrv <<" " << "Edep " <<ECluster[s] << " " << "Q"<<j+1<<" " <<Qdep << " " <<"NCluster "<< NCluster<< " " << "NHC " << NHC[s] << endl;
+                      //     cout <<chan<<"    T_Cluster =" <<TCluster[s] <<" DeltaPhi ="<< DeltaPhi <<" T_travel ="<<abs(DeltaPhi/LightSpeedAng) <<" " << j << " sipm =" <<TSipmBdxMini[j] <<" PhiCluster ="<< PhiCluster[s]<< endl;
+                     //      cout << "CLUSTER T " <<TCluster[s] << " "<< "PHI_LOC " <<PhiLoc << " " << "NGrv " << NGrv <<" " << "Edep " <<ECluster[s] << " " << "Q"<<j+1<<" " <<Qdep << " " <<"NCluster "<< NCluster<< " " << "NHC " << NHC[s] << endl;
                         }
                     }
                     for(unsigned int s=0; s<8; s++)
