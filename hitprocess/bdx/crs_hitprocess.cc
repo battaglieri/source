@@ -74,8 +74,8 @@ map<string, double> crs_HitProcess::integrateDgt(MHit* aHit, int hitn) {
         sensor_surface_crs = pow(0.6 * cm, 2);
         sensor_qe_crs = 0.22; // consider only 25um sipm
         optical_coupling = 0.9;
-        if (sector == 400 || sector == 402) light_yield_crs = 350 * integration_frac / MeV;//Panda Crystals LY
-        if (sector == 500 || sector == 502) light_yield_crs = 350 * integration_frac / MeV;//FT Crystals LY
+        if (sector == 400 || sector == 402) light_yield_crs = 430 * integration_frac / MeV;//Panda Crystals LY
+        if (sector == 500 || sector == 502) light_yield_crs = 430 * integration_frac / MeV;//FT Crystals LY
     }
     double length_crs; //(in mm)
     double sside_crs;
@@ -147,6 +147,7 @@ map<string, double> crs_HitProcess::integrateDgt(MHit* aHit, int hitn) {
 	}
 
 	double Etot_B_crs = 0;
+    double Etot_noB_crs=0.;
 	if (Etot_crs > 0) {
 		for (unsigned int s = 0; s < nsteps; s++) {   //Reference vie for cal matrix:
 													  //cristals with short size pointing downstream
@@ -178,7 +179,9 @@ map<string, double> crs_HitProcess::integrateDgt(MHit* aHit, int hitn) {
 //			double Edep_B = BirksAttenuation(Edep[s],Dx[s],charge[s],birks_constant);
 
 			double Edep_B_crs = BirksAttenuation(Edep[s], Dx[s], charge[s], birks_constant);
+
 			//	Edep_B_crs = Edep[s];
+            Etot_noB_crs=Etot_noB_crs+Edep[s];
 			Etot_B_crs = Etot_B_crs + Edep_B_crs;
 
 			//	cout << "\t Birks Effect: " << " Edep=" << Edep[s] << " StepL=" << Dx[s] << " charge =" << charge[s] << " Edep_B=" << Edep_B_crs << endl;
@@ -362,8 +365,8 @@ map<string, double> crs_HitProcess::integrateDgt(MHit* aHit, int hitn) {
 	dgtz["adcr"] = ADCR_crs;	  //SIPM 25um -> large size for matrix, small size for single
 	dgtz["tdcl"] = TDCL_crs;	  //
 	dgtz["tdcr"] = TDCR_crs;	  // as per ADCR_crs
-	dgtz["adcb"] = 0;
-	dgtz["adcf"] = 0;
+	dgtz["adcb"] = Etot_B_crs;  // deposited energy with Birks
+	dgtz["adcf"] = Etot_noB_crs;
 	dgtz["tdcb"] = TDCB * 1000.;	  //original time in ps
 	dgtz["tdcf"] = 0;
 
