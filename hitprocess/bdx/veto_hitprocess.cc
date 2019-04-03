@@ -905,8 +905,8 @@ map<string, double> veto_HitProcess :: integrateDgt(MHit* aHit, int hitn)
                     double att_l_ang=90;
                     double TrGrv=0.6;
                     double MeV2pe[8];
-                    double MeV2peIV[8]={26.,26.,26.,26.,26.,26.,26.,26.};//Oct
-                    double MeV2peOV[8]={17.,17.,17.,17.,17.,17.,17.,17.};//Cyl
+                    double MeV2peIV[8]={28.,28.,28.,28.,28.,28.,28.,28.};//Oct
+                    double MeV2peOV[8]={18.,18.,18.,18.,18.,18.,18.,18.};//Cyl
                     double Qdep;
                     unsigned int NGrv;
                     double PhiLoc;
