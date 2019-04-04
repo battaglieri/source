@@ -60,6 +60,7 @@ map<string, double> crs_HitProcess::integrateDgt(MHit* aHit, int hitn) {
 
 	//Old crystal
 	if (sector == 100 && xch == 0 && ych == 0) {
+        //double att_length_crs = 600 * cm; // compatible with NO ATT Lenght as measured for cosmic muons
 		sensor_surface_crs = pow(0.3 * cm, 2);
 		redout_surface_crs = pow(4.7 * cm, 2);
 		sensor_qe_crs = 0.22; // consider only 25um sipm
@@ -74,8 +75,10 @@ map<string, double> crs_HitProcess::integrateDgt(MHit* aHit, int hitn) {
         sensor_surface_crs = pow(0.6 * cm, 2);
         sensor_qe_crs = 0.22; // consider only 25um sipm
         optical_coupling = 0.9;
-        if (sector == 400 || sector == 402) light_yield_crs = 430 * integration_frac / MeV;//Panda Crystals LY
-        if (sector == 500 || sector == 502) light_yield_crs = 430 * integration_frac / MeV;//FT Crystals LY
+        att_length_crs = 60000 * cm; // compatible with NO ATT Lenght as measured for cosmic muons
+        if (sector == 400 || sector == 402) light_yield_crs = 310 * integration_frac / MeV;//Panda Crystals LY
+        if (sector == 500 || sector == 502) light_yield_crs = 310 * integration_frac / MeV;//FT Crystals LY
+
     }
     double length_crs; //(in mm)
     double sside_crs;
@@ -284,8 +287,9 @@ map<string, double> crs_HitProcess::integrateDgt(MHit* aHit, int hitn) {
 
 		//      SIPM 1
 
-		//peR_crs = etotR_crs * light_yield_crs * sensor_qe_crs * optical_coupling * light_coll_crs;
-		peR_crs = G4Poisson(etotR_crs * light_yield_crs * sensor_qe_crs * optical_coupling * light_coll_crs);
+		peR_crs = etotR_crs * light_yield_crs * sensor_qe_crs * optical_coupling * light_coll_crs;
+		//peR_crs = G4Poisson(etotR_crs * light_yield_crs * sensor_qe_crs * optical_coupling * light_coll_crs);
+        //cout<<peR_crs<<" "<< etotR_crs<< " "<< peR_crs/etotR_crs<<endl;
 		//
 		// integrating over the integration time (each sample 4.ns, see digi routine)
         //cout <<"tre "<< light_yield_crs<<endl;
@@ -316,8 +320,8 @@ map<string, double> crs_HitProcess::integrateDgt(MHit* aHit, int hitn) {
 		//cout <<time_min_crs[1]<<"  "<<TDCB<<endl;
 
 		// Left readout (small size side)
-		//peL_crs = etotL_crs * light_yield_crs * sensor_qe_crs * optical_coupling * light_coll_crs;
-		peL_crs = G4Poisson(etotL_crs * light_yield_crs * sensor_qe_crs * optical_coupling * light_coll_crs);
+        peL_crs = etotL_crs * light_yield_crs * sensor_qe_crs * optical_coupling * light_coll_crs;
+		//peL_crs = G4Poisson(etotL_crs * light_yield_crs * sensor_qe_crs * optical_coupling * light_coll_crs);
 		// integrating over the integration time (each sample 4.ns, see digi routine)
 
         if (sector == 400 || sector == 402 ||sector == 500 ||sector == 502) // 400/402 = Panda Crystals Top/Bottom, 500/502 = FT crystals Top/Bottom
@@ -335,7 +339,7 @@ map<string, double> crs_HitProcess::integrateDgt(MHit* aHit, int hitn) {
 
 
 		//peL_int_crs = 0.63 * peL_crs;
-		//cout << "TDCR: " << tim << " Npe before digi " << peR_crs<< " Npe avter digi " <<peR_int_crs <<endl;
+		//cout << "TDCL: " << tim << " Npe before digi " << peL_crs<< " Npe avter digi " <<peL_int_crs <<endl;
 		TDCL_crs = int(tim) + ((time_min_crs[0] + T_offset_crs + G4RandGauss::shoot(0.,sigmaTR_crs)) * tdc_conv_crs); // assigning to L the sipm2
 		ADCL_crs = int(peL_int_crs);
 		//   Old crystal readout by the 50um on thesmall size readout (Left side). No 100 um sipm implemented
@@ -361,6 +365,13 @@ map<string, double> crs_HitProcess::integrateDgt(MHit* aHit, int hitn) {
 	dgtz["sector"] = sector;
 	dgtz["xch"] = xch;
 	dgtz["ych"] = ych;
+      if (sector == 400 || sector == 402 ||sector == 500 ||sector == 502)// for BDX-MINI crystals ADCL_crs is in keV ! only valid if no attenuation !
+     {
+        ADCL_crs=ADCL_crs*1000 /(light_yield_crs * sensor_qe_crs * optical_coupling * light_coll_crs * 0.5);
+        ADCR_crs = ADCL_crs;
+        //cout <<ADCL_crs<<" " <<Etot_B_crs<<"Npe/MeV = " <<(light_yield_crs * sensor_qe_crs * optical_coupling * light_coll_crs * 0.5)<<endl;
+
+     }
 	dgtz["adcl"] = ADCL_crs;	  //
 	dgtz["adcr"] = ADCR_crs;	  //SIPM 25um -> large size for matrix, small size for single
 	dgtz["tdcl"] = TDCL_crs;	  //
