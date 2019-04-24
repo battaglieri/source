@@ -241,7 +241,7 @@ map<string, double> crs_HitProcess::integrateDgt(MHit* aHit, int hitn) {
 
 		// cout << "Etot " << Etot_crs  << " EtotB " << Etot_B_crs  << " steps " << nsteps<< endl;
 //		double peL=G4Poisson(etotL*light_yield*sensor_qe);
-//		double peR=G4Poisson(etotR*light_yield*sensor_qe);
+//		double peR=G4Poisson(etotR*light_yield*sensor_qe);do 
 //        double sigmaTL=sqrt(pow(0.2*nanosecond,2.)+pow(1.*nanosecond,2.)/(peL+1.));
 //        double sigmaTR=sqrt(pow(0.2*nanosecond,2.)+pow(1.*nanosecond,2.)/(peR+1.));
 
@@ -311,7 +311,7 @@ map<string, double> crs_HitProcess::integrateDgt(MHit* aHit, int hitn) {
 
 		//cout << "TDCR: " << tim << " Npe before digi " << peR_crs<< " Npe avter digi " <<peR_int_crs <<endl;
 		TDCR_crs = int(tim) + ((time_min_crs[1] + T_offset_crs + G4RandGauss::shoot(0.,sigmaTR_crs)) * tdc_conv_crs);
-		ADCR_crs = int(peR_int_crs);
+		ADCR_crs = int(peR_int_crs*1000.);//in keV
 		//ADCL_crs=etotR_crs*1000;
 		//cout << "TDCR: " << tim << " Npe before digi " << peR_crs<< " Npe avter digi " <<peR_int_crs <<endl;
 
@@ -341,7 +341,7 @@ map<string, double> crs_HitProcess::integrateDgt(MHit* aHit, int hitn) {
 		//peL_int_crs = 0.63 * peL_crs;
 		//cout << "TDCL: " << tim << " Npe before digi " << peL_crs<< " Npe avter digi " <<peL_int_crs <<endl;
 		TDCL_crs = int(tim) + ((time_min_crs[0] + T_offset_crs + G4RandGauss::shoot(0.,sigmaTR_crs)) * tdc_conv_crs); // assigning to L the sipm2
-		ADCL_crs = int(peL_int_crs);
+		ADCL_crs = int(peL_int_crs*1000.); //in keV
 		//   Old crystal readout by the 50um on thesmall size readout (Left side). No 100 um sipm implemented
 		// Parameters assigned at tghe beginning (qe, size, optical coupling)
 		// Reassigniong TDCR and ADCR for uniform readout
@@ -367,7 +367,7 @@ map<string, double> crs_HitProcess::integrateDgt(MHit* aHit, int hitn) {
 	dgtz["ych"] = ych;
       if (sector == 400 || sector == 402 ||sector == 500 ||sector == 502)// for BDX-MINI crystals ADCL_crs is in keV ! only valid if no attenuation !
      {
-        ADCL_crs=ADCL_crs*1000 /(light_yield_crs * sensor_qe_crs * optical_coupling * light_coll_crs * 0.5);
+        ADCL_crs=ADCL_crs /(light_yield_crs * sensor_qe_crs * optical_coupling * light_coll_crs * 0.5);
         ADCR_crs = ADCL_crs;
         //cout <<ADCL_crs<<" " <<Etot_B_crs<<"Npe/MeV = " <<(light_yield_crs * sensor_qe_crs * optical_coupling * light_coll_crs * 0.5)<<endl;
 
