@@ -66,7 +66,7 @@ map<string, double> crs_HitProcess::integrateDgt(MHit* aHit, int hitn) {
 		sensor_qe_crs = 0.22; // consider only 25um sipm
 		optical_coupling = 0.6866;
 	}
-
+ 
     
     // PbWO4 parameters
     if (sector == 400 || sector == 402 ||sector == 500 ||sector == 502) // 400/402 = Panda Crystals Top/Bottom, 500/502 = FT crystals Top/Bottom
@@ -320,7 +320,7 @@ map<string, double> crs_HitProcess::integrateDgt(MHit* aHit, int hitn) {
 		//cout <<time_min_crs[1]<<"  "<<TDCB<<endl;
 
 		// Left readout (small size side)
-        peL_crs = etotL_crs * light_yield_crs * sensor_qe_crs * optical_coupling * light_coll_crs;
+		peL_crs = etotL_crs * light_yield_crs * sensor_qe_crs * optical_coupling * light_coll_crs;
 		//peL_crs = G4Poisson(etotL_crs * light_yield_crs * sensor_qe_crs * optical_coupling * light_coll_crs);
 		// integrating over the integration time (each sample 4.ns, see digi routine)
 
@@ -340,8 +340,15 @@ map<string, double> crs_HitProcess::integrateDgt(MHit* aHit, int hitn) {
 
 		//peL_int_crs = 0.63 * peL_crs;
 		//cout << "TDCL: " << tim << " Npe before digi " << peL_crs<< " Npe avter digi " <<peL_int_crs <<endl;
+
+	
+
 		TDCL_crs = int(tim) + ((time_min_crs[0] + T_offset_crs + G4RandGauss::shoot(0.,sigmaTR_crs)) * tdc_conv_crs); // assigning to L the sipm2
-		ADCL_crs = int(peL_int_crs*1000.); //in keV
+		if (sector == 400 || sector == 402 ||sector == 500 ||sector == 502){
+		  ADCL_crs = int(peL_int_crs*1000.); //in keV
+		}else{
+		  ADCL_crs = int(peL_int_crs);
+		}
 		//   Old crystal readout by the 50um on thesmall size readout (Left side). No 100 um sipm implemented
 		// Parameters assigned at tghe beginning (qe, size, optical coupling)
 		// Reassigniong TDCR and ADCR for uniform readout
@@ -555,7 +562,7 @@ double* crs_HitProcess::WaveFormPbwo(double npe, double* time_pbwo) {
     //    double threshold=10.*1./area/smp_t/1000.; //time threshold in pe - 1/55.41/smp_t*1000. is the funct max -
     
     double t_spread = 1. * 0.000; // pream time spread in us
-    double A_spread = 1. * 0.05 * A; // pream amp spread (in fraction of 1pe amplitude = A)
+    double A_spread = 1. * 0.4 * A; // pream amp spread (in fraction of 1pe amplitude = A)
     double func = 0.;
     // Building the waveform
     for (unsigned int s = 0; s < 1000; s++) {
@@ -575,7 +582,7 @@ double* crs_HitProcess::WaveFormPbwo(double npe, double* time_pbwo) {
     // fraction of pe in Nch_digi
     double frac = 1 - ((p[2] * exp(-smp_t * Nch_digi / p[1]) + p[4] * exp(-smp_t * Nch_digi / p[3])));
     int Npe = frac * npe;
-    //    cout << "Npe  " << Npe<<"  "<<npe << endl;
+    //cout << "Npe  " << Npe<<"  "<<npe << endl;
     
     //Npe=1.;
     //Npe=Npe/100.;
